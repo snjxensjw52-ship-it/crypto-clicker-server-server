@@ -15,7 +15,7 @@ let db = {
 };
 
 // ВПИШИ СЮДА СВОЙ НАСТОЯЩИЙ TELEGRAM ID ДЛЯ ПОЛНОЙ БЕЗОПАСНОСТИ
-const MASTER_CREATOR_TG_ID = "123456789"; 
+const MASTER_CREATOR_TG_ID = "8745499515"; 
 
 const BANNED_WORDS = ["badword", "scam", "admin", "moderator", "cheat", "hack", "fuck", "bitch", "shit"];
 
