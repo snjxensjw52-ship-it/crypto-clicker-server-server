@@ -1,136 +1,275 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Crypto Clicker Pro Ultimate</title>
-    <script src="https://telegram.org"></script>
+    <title>Crypto Clicker Pro</title>
     <style>
-        :root { --bg-color: #0a0b10; --panel-bg: #141622; --accent-color: #00ffcc; --text-color: #ffffff; --text-muted: #8a8f9d; --danger-color: #ff3366; --creator-color: #ffaa00; }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; user-select: none; }
-        body { background-color: var(--bg-color); color: var(--text-color); display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow: hidden; }
-        #game-container { width: 100%; max-width: 480px; height: 100vh; background: radial-gradient(circle at center, #1a1c2e 0%, var(--bg-color) 100%); display: flex; flex-direction: column; position: relative; box-shadow: 0 0 30px rgba(0,0,0,0.8); }
-        .screen { display: none; flex-direction: column; height: 100%; width: 100%; padding: 20px; overflow-y: auto; }
-        .screen.active { display: flex; animation: fadeIn 0.3s ease-in-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .btn { background: linear-gradient(135deg, var(--accent-color) 0%, #00aaff 100%); color: #000; border: none; padding: 12px 20px; border-radius: 12px; font-weight: bold; cursor: pointer; text-align: center; }
-        .btn-danger { background: linear-gradient(135deg, var(--danger-color) 0%, #b3002d 100%) !important; color: #fff !important; }
-        .input-field { width: 100%; padding: 14px; background: #0d0e15; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; color: #fff; font-size: 16px; margin-bottom: 15px; text-align: center; }
-        .hud-header { display: flex; justify-content: space-between; align-items: center; background: var(--panel-bg); padding: 15px; border-radius: 16px; margin-bottom: 20px; }
-        .coin-display { text-align: center; margin: 20px 0; }
-        .coin-count { font-size: 42px; font-weight: 800; display: flex; align-items: center; justify-content: center; gap: 10px; }
-        .coin-icon { width: 40px; height: 40px; background: #ffd700; border-radius: 50%; box-shadow: 0 0 15px #ffd700; }
-        .clicker-box { display: flex; justify-content: center; align-items: center; flex-grow: 1; }
-        .big-coin { width: 180px; height: 180px; background: radial-gradient(circle, #ffe866 0%, #cca300 100%); border-radius: 50%; border: 6px solid #fff; cursor: pointer; }
-        .roulette-container { background: var(--panel-bg); padding: 20px; border-radius: 18px; text-align: center; position: relative; }
-        .roulette-viewport { width: 100%; height: 70px; background: #0d0e15; border-radius: 12px; overflow: hidden; position: relative; margin: 15px 0; border: 2px solid rgba(255,255,255,0.1); }
-        .roulette-tape { display: flex; position: absolute; left: 0; top: 0; height: 100%; }
-        .roulette-multiplier { min-width: 70px; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; font-weight: bold; font-size: 16px; }
-        .m-0 { background: #3a0d16; color: var(--danger-color); }
-        .m-1 { background: #2a2d3d; color: #aaa; }
-        .m-2 { background: #1a5c3a; color: #2ecc71; }
-        .m-3 { background: #1f4a7c; color: #3498db; }
-        .m-4 { background: #6c237a; color: #9b59b6; }
-        .m-5 { background: #8a6d0f; color: #f1c40f; }
-        .roulette-pointer { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 4px; height: 100%; background: var(--accent-color); z-index: 5; }
-        .nav-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; background: var(--panel-bg); padding: 10px; border-radius: 20px 20px 0 0; margin-top: auto; }
-        .nav-tabs.has-admin { grid-template-columns: repeat(4, 1fr) !important; }
-        .tab-btn { background: transparent; border: none; color: var(--text-muted); font-size: 11px; padding: 10px 0; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 5px; }
-        .tab-btn.active { color: var(--accent-color); }
-        .section-box { background: var(--panel-bg); padding: 15px; border-radius: 14px; margin-bottom: 15px; }
-        .role-tag { font-size: 11px; color: var(--creator-color); font-weight: bold; text-transform: uppercase; }
+        :root {
+            --bg-color: #0d0e15;
+            --accent-color: #ffaa00;
+            --text-color: #ffffff;
+            --panel-bg: rgba(255, 255, 255, 0.05);
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+            user-select: none;
+        }
+        .header {
+            width: 100%;
+            max-width: 500px;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-sizing: border-box;
+        }
+        .nav-menu {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            max-width: 100%;
+            padding: 5px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .nav-btn, .action-btn {
+            background: var(--panel-bg);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 12px;
+            white-space: nowrap;
+            transition: 0.2s;
+        }
+        .nav-btn:hover, .action-btn:hover {
+            background: rgba(255,255,255,0.15);
+        }
+        .game-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            max-width: 500px;
+            padding: 20px;
+            box-sizing: border-box;
+            text-align: center;
+        }
+        .stats-display {
+            margin-bottom: 20px;
+        }
+        .coin-balance {
+            font-size: 42px;
+            font-weight: bold;
+            color: var(--accent-color);
+            margin: 10px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        .coin-trigger {
+            width: 200px;
+            height: 200px;
+            background: radial-gradient(circle, #ffe066 0%, #f5b041 100%);
+            border-radius: 50%;
+            box-shadow: 0 10px 25px rgba(245, 176, 65, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 80px;
+            cursor: pointer;
+            transition: transform 0.1s;
+            touch-action: manipulation;
+        }
+        .coin-trigger:active {
+            transform: scale(0.95);
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            z-index: 100;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: #1c1d26;
+            width: 90%;
+            max-width: 400px;
+            border-radius: 24px;
+            padding: 25px;
+            box-sizing: border-box;
+            position: relative;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .close-modal {
+            position: absolute;
+            top: 15px; right: 15px;
+            font-size: 24px;
+            cursor: pointer;
+            color: #888;
+        }
     </style>
 </head>
 <body>
 
-<div id="game-container">
-    <div id="blocked-screen" class="screen">
-        <div style="text-align: center; margin-top: 50%; padding: 20px;">
-            <h1 id="blocked-title" style="color: var(--danger-color); font-size: 28px;">SYSTEM LOCKED</h1>
-            <p id="blocked-reason" style="color: var(--text-muted); margin-top: 20px;">Connection terminated.</p>
-        </div>
+    <div class="header">
+        <div style="font-weight: bold; font-size: 18px;">Crypto Clicker Pro</div>
+        <button class="action-btn" onclick="openModal('settingsModal')">⚙️</button>
     </div>
 
-    <div id="auth-screen" class="screen active">
-        <div class="auth-box" style="text-align: center; margin-top: 40%;">
-            <h1 style="color: var(--accent-color); margin-bottom: 10px;">SYNCING...</h1>
-            <p style="color: var(--text-muted);">Establishing Secure Connection To Live Server</p>
-            <button class="btn" style="width: 100%; margin-top: 20px;" onclick="app.register()">Connect Game</button>
-        </div>
+    <div class="nav-menu">
+        <button class="nav-btn" onclick="openModal('profileModal')">👤 Профиль</button>
+        <button class="nav-btn" onclick="openModal('levelsModal')">⭐ Уровни</button>
+        <button class="nav-btn" onclick="openModal('marketModal')">🛒 Маркет</button>
+        <button class="nav-btn" onclick="openModal('casinoModal')">🎰 Казино</button>
+        <button class="nav-btn" onclick="openModal('dailyModal')">🎁 Бонус</button>
     </div>
 
-    <div id="main-screen" class="screen">
-        <div class="hud-header">
-            <div>
-                <span id="hud-name" style="font-weight: bold; font-size: 18px;">-</span>
-                <div><span id="hud-role" class="role-tag">PLAYER</span></div>
+    <div class="game-container">
+        <div class="stats-display">
+            <div id="levelDisplay">Уровень: 1 (0 / 100 XP)</div>
+            <div style="color: #888; font-size: 14px;">Пассивный доход: +0 /сек</div>
+        </div>
+
+        <div class="coin-balance">
+            <span>🪙</span> <span id="balanceDisplay">0</span>
+        </div>
+
+        <div class="coin-trigger" id="coinButton">🪙</div>
+    </div>
+
+    <div id="profileModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeModal('profileModal')">✕</span>
+            <h2>👤 Профиль</h2>
+            <p><strong>Имя:</strong> <span id="profName">Player</span></p>
+            <p><strong>Баланс:</strong> <span id="profCoins">0</span> 🪙</p>
+            <p><strong>Всего кликов:</strong> <span id="profClicks">0</span></p>
+            <h3>🏅 Медали</h3>
+            <div style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 10px;">
+                🥉 <strong>NEWCOMER</strong> - Добро пожаловать в игру!
             </div>
-            <div style="text-align: right;">
-                <span id="hud-lvl" style="color: var(--accent-color); font-weight: bold;">Lvl 1</span>
-                <div id="hud-xp" style="font-size: 11px; color: var(--text-muted);">0/100 XP</div>
-            </div>
-        </div>
-        <div class="coin-display">
-            <div class="coin-count"><div class="coin-icon"></div><span id="balance-display">0</span></div>
-            <p style="font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 5px;">Secure ID: <span id="hud-tg-id">0</span></p>
-        </div>
-        <div class="clicker-box"><div class="big-coin" onclick="app.clickCoin()"></div></div>
-        <div id="tabs-container" class="nav-tabs">
-            <button class="tab-btn active" onclick="app.switchTab('main-screen')">🪙Game</button>
-            <button class="tab-btn" onclick="app.switchTab('roulette-screen')">🎰Roulette</button>
-            <button class="tab-btn" onclick="app.switchTab('profile-screen')">👤Profile</button>
-            <button id="nav-admin-btn" class="tab-btn" style="display:none;" onclick="app.switchTab('admin-screen')">👑Master</button>
         </div>
     </div>
 
-    <div id="roulette-screen" class="screen">
-        <div class="roulette-container">
-            <h2>🎰 Cyber Risk Roulette</h2>
-            <div class="roulette-viewport"><div class="roulette-pointer"></div><div id="roulette-tape" class="roulette-tape"></div></div>
-            <input type="number" id="gamble-amount" class="input-field" placeholder="Wager amount...">
-            <button id="spin-btn" class="btn" style="width: 100%;" onclick="app.spinRoulette()">SPIN WHEEL</button>
-        </div>
-        <div class="nav-tabs">
-            <button class="tab-btn" onclick="app.switchTab('main-screen')">🪙Game</button>
-            <button class="tab-btn active" onclick="app.switchTab('roulette-screen')">🎰Roulette</button>
-            <button class="tab-btn" onclick="app.switchTab('profile-screen')">👤Profile</button>
+    <div id="settingsModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeModal('settingsModal')">✕</span>
+            <h2>⚙️ Настройки</h2>
+            <p><button class="nav-btn" style="width:100%" onclick="toggleSetting('music')">🎵 МУЗЫКА: <span id="set-music">ON</span></button></p>
+            <p><button class="nav-btn" style="width:100%" onclick="toggleSetting('vibro')">📳 ВИБРАЦИЯ: <span id="set-vibro">ON</span></button></p>
+            <p><button class="nav-btn" style="width:100%" onclick="toggleSetting('sound')">🔊 ЗВУКИ: <span id="set-sound">ON</span></button></p>
         </div>
     </div>
 
-    <div id="profile-screen" class="screen">
-        <div class="section-box">
-            <h2>👤 Player Dashboard</h2>
-            <div id="creator-exclusive-zone" style="display:none; margin-top: 10px; background: rgba(255,170,0,0.1); padding: 10px; border-radius: 8px;">
-                <p style="color: var(--creator-color); font-weight: bold;">Select Custom Badge:</p>
-                <button class="btn" style="padding:4px 10px;" onclick="app.setCreatorEmoji('👑')">👑</button>
-                <button class="btn" style="padding:4px 10px;" onclick="app.setCreatorEmoji('🔥')">🔥</button>
-                <button class="btn" style="padding:4px 10px;" onclick="app.setCreatorEmoji('💎')">💎</button>
-            </div>
-            <p style="margin-top:15px;">Username: <span id="profile-name-tag" style="font-weight: bold;">-</span></p>
-            <p>High Score Record: <span id="record-display" style="font-weight: bold;">0</span></p>
+    <div id="casinoModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeModal('casinoModal')">✕</span>
+            <h2>🎰 Рулетка Удачи</h2>
+            <p>Ваш баланс: <span id="casinoBalance">0</span> 🪙</p>
+            <div style="font-size: 32px; margin: 20px 0; font-weight: bold; color: var(--accent-color);" id="rouletteResult">×?</div>
+            <button class="nav-btn" style="font-size: 16px; padding: 12px 24px;" onclick="spinRoulette()">КРУТИТЬ (100 🪙)</button>
         </div>
     </div>
 
-    <div id="admin-screen" class="screen">
-        <div class="section-box">
-            <h2 style="color: var(--creator-color);">👑 CREATOR SYSTEM ROOT</h2>
-            <input type="text" id="admin-target-input" class="input-field" placeholder="Target Player Telegram ID...">
-            <button class="btn btn-danger" style="width: 100%; margin-bottom: 10px;" onclick="app.sendAdminCmd('BAN')">BAN TG ID</button>
-            <button class="btn" style="width: 100%; margin-bottom: 25px; background: #1a5c3a; color: #fff;" onclick="app.sendAdminCmd('UNBAN')">UNBAN TG ID</button>
-            <button class="btn btn-danger" style="width: 100%; margin-bottom: 10px;" onclick="app.sendAdminCmd('KILL_SWITCH')">TOGGLE KILL SWITCH</button>
-            <button class="btn" style="width: 100%; background: #555; color: #fff;" onclick="app.sendAdminCmd('RESET_ECONOMY')">WIPE ALL BALANCES</button>
+    <div id="marketModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeModal('marketModal')">✕</span>
+            <h2>🛒 Маркет улучшений</h2>
+            <p>Раздел находится в разработке синхронизации с сервером.</p>
         </div>
     </div>
-</div>
 
-<script>
-class CryptoClickerApp {
-    constructor() {
-        this.serverUrl = window.location.origin; 
-        this.state = { tgId: "0", username: "Guest", role: "player", chosenEmoji: "", coins: 0, recordCoins: 0, level: 1, xp: 0 };
-        this.multipliersPool =;
-        this.isSpinning = false;
-    }
-    init() {
-      document.getElementById("blocked-title").innerText = type === "BANNED" ? "ACCOUNT BANNED" : "SERVER OFFLINE";document.getElementById("blocked-reason").innerText = msg || "Restricted.";}switchTab(id) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); document.getElementById(id).classList.add('active'); }updateUI() {const name = this.state.chosenEmoji ? ${this.state.chosenEmoji} ${this.state.username} : this.state.username;document.getElementById("hud-name").innerText = name;document.getElementById("profile-name-tag").innerText = name;document.getElementById("balance-display").innerText = this.formatNumbers(this.state.coins);document.getElementById("record-display").innerText = this.formatNumbers(this.state.recordCoins);document.getElementById("hud-lvl").innerText = Lvl ${this.state.level};document.getElementById("hud-xp").innerText = ${this.formatNumbers(this.state.xp)} / ${this.formatNumbers(this.getXpNeededForLevel(this.state.level))} XP;document.getElementById("hud-role").innerText = this.state.role;document.getElementById("hud-tg-id").innerText = this.state.tgId;if (this.state.role === "creator") {document.getElementById("tabs-container").classList.add("has-admin");document.getElementById("nav-admin-btn").style.display = "flex";document.getElementById("creator-exclusive-zone").style.display = "block";}}}const app = new CryptoClickerApp(); window.onload = () => app.init();
-              
+    <div id="levelsModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeModal('levelsModal')">✕</span>
+            <h2>⭐ Система Уровней</h2>
+            <p>Каждые 50 уровней открываются уникальные секретные награды!</p>
+        </div>
+    </div>
+
+    <div id="dailyModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeModal('dailyModal')">✕</span>
+            <h2>🎁 Ежедневная награда</h2>
+            <button class="nav-btn" onclick="alert('Награда получена!')">Забрать бонус</button>
+        </div>
+    </div>
+
+    <script>
+        let gameState = {
+            coins: 0,
+            totalClicks: 0,
+            level: 1,
+            xp: 0,
+            settings: { music: true, vibro: true, sound: true }
+        };
+
+        const BACKEND_URL = window.location.origin; 
+
+        function openModal(id) {
+            document.getElementById(id).style.display = 'flex';
+            if(id === 'profileModal') {
+                document.getElementById('profCoins').innerText = gameState.coins;
+                document.getElementById('profClicks').innerText = gameState.totalClicks;
+            }
+            if(id === 'casinoModal') {
+                document.getElementById('casinoBalance').innerText = gameState.coins;
+            }
+        }
+
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('click', function(e) {
+                if (e.target === this) closeModal(this.id);
+            });
+        });
+
+        function closeModal(id) {
+            document.getElementById(id).style.display = 'none';
+        }
+
+        function toggleSetting(type) {
+            gameState.settings[type] = !gameState.settings[type];
+            document.getElementById(`set-${type}`).innerText = gameState.settings[type] ? "ON" : "OFF";
+            if(gameState.settings.vibro && navigator.vibrate) navigator.vibrate(30);
+        }
+
+        function spinRoulette() {
+            if (gameState.coins < 100) {
+                alert("Недостаточно коинов! Нужно 100 🪙");
+                return;
+            }
+            gameState.coins -= 100;
+            document.getElementById('balanceDisplay').innerText = gameState.coins;
+            document.getElementById('casinoBalance').innerText = gameState.coins;
+
+            let outcomes =;
+            let result = outcomes[Math.floor(Math.random() * outcomes.length)];
+
+            let display = document.getElementById('rouletteResult');
+            display.innerText = "⏳";
+
+            setTimeout(() => {
+                display.innerText = "×" + result;
+                gameState.coins += (100 * result);
+                document.getElementById('balanceDisplay').innerText = gameState.coins;
+                document.getElementById('casinoBalance').innerText = gameState.coins;
+            }, 800);
+        }
+ const coinBtn = document.getElementById('coinButton');// Обработка обычного честного кликаcoinBtn.addEventListener('click', () => {processClick(1);});function processClick(amount) {gameState.coins += amount;gameState.totalClicks++;gameState.xp += amount;document.getElementById('balanceDisplay').innerText = gameState.coins;let nextLevelXp = gameState.level * 100;if (gameState.xp >= nextLevelXp) {gameState.xp -= nextLevelXp;gameState.level++;}document.getElementById('levelDisplay').innerText = Уровень: ${gameState.level} (${gameState.xp} / ${gameState.level * 100} XP);if(gameState.settings.vibro && navigator.vibrate) navigator.vibrate(20);// Отправка клика на сервер Renderfetch(${BACKEND_URL}/api/click, {method: 'POST',headers: { 'Content-Type': 'application/json' },body: JSON.stringify({ tgId: "123456789" })}).catch(err => console.log("Клик сохранен локально"));}
