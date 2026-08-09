@@ -8,14 +8,19 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname)));
 
+// СПИСОК АДМИНИСТРАТОРОВ (Сюда уже добавлен ваш второй аккаунт)
+// ВМЕСТО "ТВОЙ_ПЕРВЫЙ_ID" ВПИШИ ЦИФРЫ СВОЕГО ОСНОВНОГО АККАУНТА!
+const ADMIN_LIST = ["ТВОЙ_ПЕРВЫЙ_ID", "8860337975"]; 
+
+function isMasterAdmin(tgId) {
+    return ADMIN_LIST.includes(String(tgId));
+}
+
 let db = {
     players: {},
     killSwitchActive: false,
     logs: []
 };
-
-// ВПИШИ СЮДА СВОЙ НАСТОЯЩИЙ TELEGRAM ID ДЛЯ ПОЛНОЙ БЕЗОПАСНОСТИ
-const MASTER_CREATOR_TG_ID = "8745499515"; 
 
 const BANNED_WORDS = ["badword", "scam", "admin", "moderator", "cheat", "hack", "fuck", "bitch", "shit"];
 
@@ -36,7 +41,7 @@ app.post('/api/auth', (req, res) => {
 
     const stringTgId = String(tgId);
 
-    if (db.killSwitchActive && stringTgId !== String(MASTER_CREATOR_TG_ID)) {
+    if (db.killSwitchActive && !isMasterAdmin(stringTgId)) {
         return res.status(503).json({ error: "SERVER_CLOSED", message: "Emergency Shutdown: Offline by the Creator." });
     }
 
@@ -52,7 +57,7 @@ app.post('/api/auth', (req, res) => {
     }
 
     let assignedRole = "player";
-    if (stringTgId === String(MASTER_CREATOR_TG_ID)) {
+    if (isMasterAdmin(stringTgId)) {
         assignedRole = "creator";
         trimmedName = "Creator"; 
     } else {
@@ -62,7 +67,7 @@ app.post('/api/auth', (req, res) => {
     }
 
     if (db.players[stringTgId] && db.players[stringTgId].isBanned) {
-        return res.status(403).json({ error: "BANNED", message: "Your account has been permanently suspended by 3-Step Anticheat." });
+        return res.status(403).json({ error: "ANTICHEAT_BANNED", message: "Your account has been permanently suspended by 3-Step Anticheat." });
     }
 
     if (!db.players[stringTgId]) {
@@ -90,13 +95,13 @@ app.post('/api/click', (req, res) => {
     const { tgId } = req.body;
     const stringTgId = String(tgId);
     
-    if (db.killSwitchActive && stringTgId !== String(MASTER_CREATOR_TG_ID)) {
+    if (db.killSwitchActive && !isMasterAdmin(stringTgId)) {
         return res.status(503).json({ error: "SERVER_CLOSED" });
     }
 
     const player = db.players[stringTgId];
     if (!player) return res.status(404).json({ error: "Player not found" });
-    if (player.isBanned) return res.status(403).json({ error: "BANNED" });
+    if (player.isBanned) return res.status(403).json({ error: "ANTICHEAT_BANNED" });
 
     const now = Date.now();
     const timeDiff = now - player.lastTapTime;
@@ -105,7 +110,7 @@ app.post('/api/click', (req, res) => {
     if (timeDiff > 0 && timeDiff < 45) {
         player.isBanned = true;
         logAction("ANTICHEAT_STAGE_1", "PERMANENT_BAN_SPEEDHACK", player.username);
-        return res.status(403).json({ error: "BANNED" });
+        return res.status(403).json({ error: "ANTICHEAT_STAGE_1" });
     }
 
     if (player.intervalsHistory.length >= 10) player.intervalsHistory.shift();
@@ -119,7 +124,7 @@ app.post('/api/click', (req, res) => {
         if (isPerfectPattern) {
             player.isBanned = true;
             logAction("ANTICHEAT_STAGE_2", "PERMANENT_BAN_MACRO", player.username);
-            return res.status(403).json({ error: "BANNED" });
+            return res.status(403).json({ error: "ANTICHEAT_STAGE_2" });
         }
     }
 
@@ -131,7 +136,7 @@ app.post('/api/click', (req, res) => {
     if (player.minuteClicksCount > 550) {
         player.isBanned = true;
         logAction("ANTICHEAT_STAGE_3", "PERMANENT_BAN_OVERLOAD", player.username);
-        return res.status(403).json({ error: "BANNED" });
+        return res.status(403).json({ error: "ANTICHEAT_STAGE_3" });
     }
 
     let clickValue = 1 + Math.floor(player.level * 0.5);
@@ -164,13 +169,12 @@ app.post('/api/save', (req, res) => {
 app.post('/api/admin/command', (req, res) => {
     const { adminTgId, command, targetTgId } = req.body;
     
-    if (String(adminTgId) !== String(MASTER_CREATOR_TG_ID)) {
+    if (!isMasterAdmin(adminTgId)) {
         return res.status(403).json({ error: "ACCESS_DENIED" });
     }
 
     if (command === "BAN") {
         if (db.players[String(targetTgId)]) {
-            if (String(targetTgId) === String(MASTER_CREATOR_TG_ID)) return res.status(403).json({ error: "Cannot ban yourself" });
             db.players[String(targetTgId)].isBanned = true;
             logAction(adminTgId, "MANUAL_BAN", targetTgId);
             return res.json({ success: true, msg: `User ID ${targetTgId} banned.` });
@@ -201,4 +205,4 @@ app.post('/api/admin/command', (req, res) => {
 });
 
 app.listen(PORT, () => console.log(`Master Server deployed on port ${PORT}`));
-      
+        
