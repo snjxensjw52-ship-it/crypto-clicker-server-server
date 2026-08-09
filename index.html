@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -124,6 +124,28 @@
             cursor: pointer;
             color: #888;
         }
+        /* Стили для элементов маркета */
+        .market-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.03);
+            padding: 12px;
+            border-radius: 14px;
+            margin-bottom: 10px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .market-info {
+            text-align: left;
+        }
+        .market-title {
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .market-desc {
+            font-size: 11px;
+            color: #888;
+        }
     </style>
 </head>
 <body>
@@ -134,17 +156,17 @@
     </div>
 
     <div class="nav-menu">
-        <button class="nav-btn" onclick="openModal('profileModal')">👤 Профиль</button>
-        <button class="nav-btn" onclick="openModal('levelsModal')">⭐ Уровни</button>
-        <button class="nav-btn" onclick="openModal('marketModal')">🛒 Маркет</button>
-        <button class="nav-btn" onclick="openModal('casinoModal')">🎰 Казино</button>
-        <button class="nav-btn" onclick="openModal('dailyModal')">🎁 Бонус</button>
+        <button class="nav-btn" onclick="openModal('profileModal')">👤 Profile</button>
+        <button class="nav-btn" onclick="openModal('levelsModal')">⭐ Levels</button>
+        <button class="nav-btn" onclick="openModal('marketModal')">🛒 Market</button>
+        <button class="nav-btn" onclick="openModal('casinoModal')">🎰 Casino</button>
+        <button class="nav-btn" onclick="openModal('dailyModal')">🎁 Bonus</button>
     </div>
 
     <div class="game-container">
         <div class="stats-display">
-            <div id="levelDisplay">Уровень: 1 (0 / 100 XP)</div>
-            <div style="color: #888; font-size: 14px;">Пассивный доход: +0 /сек</div>
+            <div id="levelDisplay">Level: 1 (0 / 100 XP)</div>
+            <div style="color: #888; font-size: 14px;">Passive income: +0 /sec</div>
         </div>
 
         <div class="coin-balance">
@@ -154,61 +176,71 @@
         <div class="coin-trigger" id="coinButton">🪙</div>
     </div>
 
+    <!-- Modal: Profile -->
     <div id="profileModal" class="modal">
         <div class="modal-content">
             <span class="close-modal" onclick="closeModal('profileModal')">✕</span>
-            <h2>👤 Профиль</h2>
-            <p><strong>Имя:</strong> <span id="profName">Player</span></p>
-            <p><strong>Баланс:</strong> <span id="profCoins">0</span> 🪙</p>
-            <p><strong>Всего кликов:</strong> <span id="profClicks">0</span></p>
-            <h3>🏅 Медали</h3>
+            <h2>👤 Profile</h2>
+            <p><strong>Username:</strong> <span id="profName">Player</span></p>
+            <p><strong>Balance:</strong> <span id="profCoins">0</span> 🪙</p>
+            <p><strong>Total Clicks:</strong> <span id="profClicks">0</span></p>
+            <h3>🏅 Medals</h3>
             <div style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 10px;">
-                🥉 <strong>NEWCOMER</strong> - Добро пожаловать в игру!
+                🥉 <strong>NEWCOMER</strong> - Welcome to the game!
             </div>
         </div>
     </div>
 
+    <!-- Modal: Settings -->
     <div id="settingsModal" class="modal">
         <div class="modal-content">
             <span class="close-modal" onclick="closeModal('settingsModal')">✕</span>
-            <h2>⚙️ Настройки</h2>
-            <p><button class="nav-btn" style="width:100%" onclick="toggleSetting('music')">🎵 МУЗЫКА: <span id="set-music">ON</span></button></p>
-            <p><button class="nav-btn" style="width:100%" onclick="toggleSetting('vibro')">📳 ВИБРАЦИЯ: <span id="set-vibro">ON</span></button></p>
-            <p><button class="nav-btn" style="width:100%" onclick="toggleSetting('sound')">🔊 ЗВУКИ: <span id="set-sound">ON</span></button></p>
+            <h2>⚙️ Settings</h2>
+            <p><button class="nav-btn" style="width:100%" onclick="toggleSetting('music')">🎵 MUSIC: <span id="set-music">ON</span></button></p>
+            <p><button class="nav-btn" style="width:100%" onclick="toggleSetting('vibro')">📳 VIBRATION: <span id="set-vibro">ON</span></button></p>
+            <p><button class="nav-btn" style="width:100%" onclick="toggleSetting('sound')">🔊 SOUNDS: <span id="set-sound">ON</span></button></p>
         </div>
     </div>
 
+    <!-- Modal: Casino -->
     <div id="casinoModal" class="modal">
         <div class="modal-content">
             <span class="close-modal" onclick="closeModal('casinoModal')">✕</span>
-            <h2>🎰 Рулетка Удачи</h2>
-            <p>Ваш баланс: <span id="casinoBalance">0</span> 🪙</p>
+            <h2>🎰 Lucky Roulette</h2>
+            <p>Your balance: <span id="casinoBalance">0</span> 🪙</p>
             <div style="font-size: 32px; margin: 20px 0; font-weight: bold; color: var(--accent-color);" id="rouletteResult">×?</div>
-            <button class="nav-btn" style="font-size: 16px; padding: 12px 24px;" onclick="spinRoulette()">КРУТИТЬ (100 🪙)</button>
+            <button class="nav-btn" style="font-size: 16px; padding: 12px 24px;" onclick="spinRoulette()">SPIN (100 🪙)</button>
         </div>
     </div>
 
+    <!-- Modal: Market (Полностью переведен и добавлены сокращения чисел) -->
     <div id="marketModal" class="modal">
         <div class="modal-content">
             <span class="close-modal" onclick="closeModal('marketModal')">✕</span>
-            <h2>🛒 Маркет улучшений</h2>
-            <p>Раздел находится в разработке синхронизации с сервером.</p>
+            <h2>🛒 Upgrades Market</h2>
+            <p style="font-size: 13px; color: #aaa; margin-bottom: 20px;">Boost your click power and passive income</p>
+            
+            <div id="marketList">
+                <!-- Товары генерируются через JavaScript с красивыми ценами -->
+            </div>
         </div>
     </div>
 
+    <!-- Modal: Levels -->
     <div id="levelsModal" class="modal">
         <div class="modal-content">
             <span class="close-modal" onclick="closeModal('levelsModal')">✕</span>
-            <h2>⭐ Система Уровней</h2>
-            <p>Каждые 50 уровней открываются уникальные секретные награды!</p>
+            <h2>⭐ Level System</h2>
+            <p>Unique secret rewards are unlocked every 50 levels!</p>
         </div>
     </div>
 
+    <!-- Modal: Daily Bonus -->
     <div id="dailyModal" class="modal">
         <div class="modal-content">
             <span class="close-modal" onclick="closeModal('dailyModal')">✕</span>
-            <h2>🎁 Ежедневная награда</h2>
-            <button class="nav-btn" onclick="alert('Награда получена!')">Забрать бонус</button>
+            <h2>🎁 Daily Reward</h2>
+            <button class="nav-btn" onclick="alert('Reward claimed!')">Claim Bonus</button>
         </div>
     </div>
 
@@ -221,55 +253,23 @@
             settings: { music: true, vibro: true, sound: true }
         };
 
+        // Базовые товары для рынка (Цены теперь будут форматироваться в 1k, 10k и т.д.)
+        let marketUpgrades = [
+            { id: "click_1", title: "Sharp Copper", desc: "+1 per click", price: 500 },
+            { id: "click_2", title: "Iron Hammer", desc: "+5 per click", price: 2500 },
+            { id: "miner_1", title: "Crypto Rig v1", desc: "+10 coins/sec", price: 10000 },
+            { id: "miner_2", title: "Cloud Server", desc: "+75 coins/sec", price: 150000 },
+            { id: "miner_3", title: "Quantum Node", desc: "+500 coins/sec", price: 2000000 }
+        ];
+
         const BACKEND_URL = window.location.origin; 
 
-        function openModal(id) {
-            document.getElementById(id).style.display = 'flex';
-            if(id === 'profileModal') {
-                document.getElementById('profCoins').innerText = gameState.coins;
-                document.getElementById('profClicks').innerText = gameState.totalClicks;
-            }
-            if(id === 'casinoModal') {
-                document.getElementById('casinoBalance').innerText = gameState.coins;
-            }
+        // Функция форматирования чисел (1000 -> 1.0k, 1000000 -> 1.0M)
+        function formatNumbers(num) {
+            if (num >= 1e9) return (num / 1e9).toFixed(1).replace(/\.0$/, '') + 'B';
+            if (num >= 1e6) return (num / 1e6).toFixed(1).replace(/\.0$/, '') + 'M';
+            if (num >= 1e3) return (num / 1e3).toFixed(1).replace(/\.0$/, '') + 'k';
+            return num;
         }
 
-        document.querySelectorAll('.modal').forEach(modal => {
-            modal.addEventListener('click', function(e) {
-                if (e.target === this) closeModal(this.id);
-            });
-        });
-
-        function closeModal(id) {
-            document.getElementById(id).style.display = 'none';
-        }
-
-        function toggleSetting(type) {
-            gameState.settings[type] = !gameState.settings[type];
-            document.getElementById(`set-${type}`).innerText = gameState.settings[type] ? "ON" : "OFF";
-            if(gameState.settings.vibro && navigator.vibrate) navigator.vibrate(30);
-        }
-
-        function spinRoulette() {
-            if (gameState.coins < 100) {
-                alert("Недостаточно коинов! Нужно 100 🪙");
-                return;
-            }
-            gameState.coins -= 100;
-            document.getElementById('balanceDisplay').innerText = gameState.coins;
-            document.getElementById('casinoBalance').innerText = gameState.coins;
-
-            let outcomes =;
-            let result = outcomes[Math.floor(Math.random() * outcomes.length)];
-
-            let display = document.getElementById('rouletteResult');
-            display.innerText = "⏳";
-
-            setTimeout(() => {
-                display.innerText = "×" + result;
-                gameState.coins += (100 * result);
-                document.getElementById('balanceDisplay').innerText = gameState.coins;
-                document.getElementById('casinoBalance').innerText = gameState.coins;
-            }, 800);
-        }
- const coinBtn = document.getElementById('coinButton');// Обработка обычного честного кликаcoinBtn.addEventListener('click', () => {processClick(1);});function processClick(amount) {gameState.coins += amount;gameState.totalClicks++;gameState.xp += amount;document.getElementById('balanceDisplay').innerText = gameState.coins;let nextLevelXp = gameState.level * 100;if (gameState.xp >= nextLevelXp) {gameState.xp -= nextLevelXp;gameState.level++;}document.getElementById('levelDisplay').innerText = Уровень: ${gameState.level} (${gameState.xp} / ${gameState.level * 100} XP);if(gameState.settings.vibro && navigator.vibrate) navigator.vibrate(20);// Отправка клика на сервер Renderfetch(${BACKEND_URL}/api/click, {method: 'POST',headers: { 'Content-Type': 'application/json' },body: JSON.stringify({ tgId: "123456789" })}).catch(err => console.log("Клик сохранен локально"));}
+        gameState.level++;}document.getElementById('levelDisplay').innerText = Level: ${gameState.level} (${gameState.xp} / ${gameState.level * 100} XP);if(gameState.settings.vibro && navigator.vibrate) navigator.vibrate(20);fetch(${BACKEND_URL}/api/click, {method: 'POST',headers: { 'Content-Type': 'application/json' },body: JSON.stringify({ tgId: "123456789" })}).catch(err => console.log("Click saved locally"));}
