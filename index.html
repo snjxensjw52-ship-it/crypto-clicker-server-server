@@ -124,7 +124,6 @@
             cursor: pointer;
             color: #888;
         }
-        /* Стили для элементов маркета */
         .market-item {
             display: flex;
             justify-content: space-between;
@@ -213,16 +212,13 @@
         </div>
     </div>
 
-    <!-- Modal: Market (Полностью переведен и добавлены сокращения чисел) -->
+    <!-- Modal: Market -->
     <div id="marketModal" class="modal">
         <div class="modal-content">
             <span class="close-modal" onclick="closeModal('marketModal')">✕</span>
             <h2>🛒 Upgrades Market</h2>
             <p style="font-size: 13px; color: #aaa; margin-bottom: 20px;">Boost your click power and passive income</p>
-            
-            <div id="marketList">
-                <!-- Товары генерируются через JavaScript с красивыми ценами -->
-            </div>
+            <div id="marketList"></div>
         </div>
     </div>
 
@@ -253,7 +249,6 @@
             settings: { music: true, vibro: true, sound: true }
         };
 
-        // Базовые товары для рынка (Цены теперь будут форматироваться в 1k, 10k и т.д.)
         let marketUpgrades = [
             { id: "click_1", title: "Sharp Copper", desc: "+1 per click", price: 500 },
             { id: "click_2", title: "Iron Hammer", desc: "+5 per click", price: 2500 },
@@ -264,7 +259,6 @@
 
         const BACKEND_URL = window.location.origin; 
 
-        // Функция форматирования чисел (1000 -> 1.0k, 1000000 -> 1.0M)
         function formatNumbers(num) {
             if (num >= 1e9) return (num / 1e9).toFixed(1).replace(/\.0$/, '') + 'B';
             if (num >= 1e6) return (num / 1e6).toFixed(1).replace(/\.0$/, '') + 'M';
@@ -272,4 +266,12 @@
             return num;
         }
 
-        gameState.level++;}document.getElementById('levelDisplay').innerText = Level: ${gameState.level} (${gameState.xp} / ${gameState.level * 100} XP);if(gameState.settings.vibro && navigator.vibrate) navigator.vibrate(20);fetch(${BACKEND_URL}/api/click, {method: 'POST',headers: { 'Content-Type': 'application/json' },body: JSON.stringify({ tgId: "123456789" })}).catch(err => console.log("Click saved locally"));}
+        function updateUI() {
+            document.getElementById('balanceDisplay').innerText = formatNumbers(gameState.coins);
+        }
+
+        function openModal(id) {
+            document.getElementById(id).style.display = 'flex';
+            if(id === 'profileModal') {
+                document.getElementById('profCoins').innerText = formatNumbers(gameState.coins);
+    document.getElementById('profClicks').innerText = formatNumbers(gameState.totalClicks);}if(id === 'casinoModal') {document.getElementById('casinoBalance').innerText = formatNumbers(gameState.coins);}if(id === 'marketModal') {renderMarket();}}function renderMarket() {const list = document.getElementById('marketList');list.innerHTML = "";marketUpgrades.forEach(item => {list.innerHTML +=  <div class="market-item"> <div class="market-info"> <div class="market-title">${item.title}</div> <div class="market-desc">${item.desc}</div> </div> <button class="nav-btn" onclick="buyUpgrade('${item.id}', ${item.price})"> 🛒 ${formatNumbers(item.price)} </button> </div>;});}function buyUpgrade(id, price) {if (gameState.coins < price) {alert("Not enough coins!");return;}gameState.coins -= price;alert("Upgrade purchased!");updateUI();renderMarket();}document.querySelectorAll('.modal').forEach(modal => {modal.addEventListener('click', function(e) {if (e.target === this) closeModal(this.id);});});function closeModal(id) {document.getElementById(id).style.display = 'none';}function toggleSetting(type) {gameState.settings[type] = !gameState.settings[type];document.getElementById(set-${type}).innerText = gameState.settings[type] ? "ON" : "OFF";if(gameState.settings.vibro && navigator.vibrate) navigator.vibrate(30);}function spinRoulette() {if (gameState.coins < 100) {alert("Not enough coins! Need 100 🪙");return;}gameState.coins -= 100;updateUI();document.getElementById('casinoBalance').innerText = formatNumbers(gameState.coins);let outcomes =;let result = outcomes[Math.floor(Math.random() * outcomes.length)];let display = document.getElementById('rouletteResult');display.innerText = "⏳";setTimeout(() => {display.innerText = "×" + result;gameState.coins += (100 * result);updateUI();document.getElementById('casinoBalance').innerText = formatNumbers(gameState.coins);}, 800);}const coinBtn = document.getElementById('coinButton');coinBtn.addEventListener('click', () => {processClick(1);});function processClick(amount) {gameState.coins += amount;gameState.totalClicks++;gameState.xp += amount;updateUI();let nextLevelXp = gameState.level * 100;if (gameState.xp >= nextLevelXp) {gameState.xp -= nextLevelXp;gameState.level++;}document.getElementById('levelDisplay').innerText = Level: ${gameState.level} (${gameState.xp} / ${gameState.level * 100} XP);if(gameState.settings.vibro && navigator.vibrate) navigator.vibrate(20);fetch(${BACKEND_URL}/api/click, {method: 'POST',headers: { 'Content-Type': 'application/json' },body: JSON.stringify({ tgId: "123456789" })}).catch(err => console.log("Click saved locally"));}
