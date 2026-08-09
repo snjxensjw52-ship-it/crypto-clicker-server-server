@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Crypto Clicker Pro</title>
+    <!-- Официальный скрипт Telegram для авторизации и получения ID -->
+    <script src="https://telegram.org"></script>
     <style>
         :root {
             --bg-color: #0d0e15;
@@ -54,7 +56,7 @@
             transition: 0.2s;
         }
         .nav-btn:hover, .action-btn:hover {
-            background: rgba(255,255,255,0.15);
+            background: rgba(255, 255, 255, 0.15);
         }
         .game-container {
             flex: 1;
@@ -145,9 +147,46 @@
             font-size: 11px;
             color: #888;
         }
+        /* Экран блокировки */
+        .ban-screen {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #090a0f;
+            z-index: 9999;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #ff3b30;
+            text-align: center;
+            padding: 30px;
+            box-sizing: border-box;
+        }
+        .ban-box {
+            background: #16171e;
+            border: 2px solid #ff3b30;
+            padding: 25px;
+            border-radius: 20px;
+            max-width: 340px;
+            box-shadow: 0 0 30px rgba(255, 59, 48, 0.2);
+        }
     </style>
 </head>
 <body>
+
+    <!-- Мгновенный экран блокировки игрока -->
+    <div id="banScreen" class="ban-screen">
+        <div class="ban-box">
+            <div style="font-size: 50px; margin-bottom: 15px;">🚫</div>
+            <h2 style="margin: 0 0 10px 0; font-size: 22px; text-transform: uppercase;">Доступ ограничен</h2>
+            <p style="color: #ffffff; font-size: 15px; margin: 0 0 15px 0; font-weight: bold;">
+                Ваш аккаунт заблокирован за подозрении нечестной игры.
+            </p>
+            <div style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px; color: #aaa; font-size: 13px;">
+                Блокировка выдана: <span id="banIssuer" style="color: #ffaa00; font-weight: bold;">Проверка...</span>
+            </div>
+        </div>
+    </div>
 
     <div class="header">
         <div style="font-weight: bold; font-size: 18px;">Crypto Clicker Pro</div>
@@ -236,42 +275,4 @@
         <div class="modal-content">
             <span class="close-modal" onclick="closeModal('dailyModal')">✕</span>
             <h2>🎁 Daily Reward</h2>
-            <button class="nav-btn" onclick="alert('Reward claimed!')">Claim Bonus</button>
-        </div>
-    </div>
-
-    <script>
-        let gameState = {
-            coins: 0,
-            totalClicks: 0,
-            level: 1,
-            xp: 0,
-            settings: { music: true, vibro: true, sound: true }
-        };
-
-        let marketUpgrades = [
-            { id: "click_1", title: "Sharp Copper", desc: "+1 per click", price: 500 },
-            { id: "click_2", title: "Iron Hammer", desc: "+5 per click", price: 2500 },
-            { id: "miner_1", title: "Crypto Rig v1", desc: "+10 coins/sec", price: 10000 },
-            { id: "miner_2", title: "Cloud Server", desc: "+75 coins/sec", price: 150000 },
-            { id: "miner_3", title: "Quantum Node", desc: "+500 coins/sec", price: 2000000 }
-        ];
-
-        const BACKEND_URL = window.location.origin; 
-
-        function formatNumbers(num) {
-            if (num >= 1e9) return (num / 1e9).toFixed(1).replace(/\.0$/, '') + 'B';
-            if (num >= 1e6) return (num / 1e6).toFixed(1).replace(/\.0$/, '') + 'M';
-            if (num >= 1e3) return (num / 1e3).toFixed(1).replace(/\.0$/, '') + 'k';
-            return num;
-        }
-
-        function updateUI() {
-            document.getElementById('balanceDisplay').innerText = formatNumbers(gameState.coins);
-        }
-
-        function openModal(id) {
-            document.getElementById(id).style.display = 'flex';
-            if(id === 'profileModal') {
-                document.getElementById('profCoins').innerText = formatNumbers(gameState.coins);
-    document.getElementById('profClicks').innerText = formatNumbers(gameState.totalClicks);}if(id === 'casinoModal') {document.getElementById('casinoBalance').innerText = formatNumbers(gameState.coins);}if(id === 'marketModal') {renderMarket();}}function renderMarket() {const list = document.getElementById('marketList');list.innerHTML = "";marketUpgrades.forEach(item => {list.innerHTML +=  <div class="market-item"> <div class="market-info"> <div class="market-title">${item.title}</div> <div class="market-desc">${item.desc}</div> </div> <button class="nav-btn" onclick="buyUpgrade('${item.id}', ${item.price})"> 🛒 ${formatNumbers(item.price)} </button> </div>;});}function buyUpgrade(id, price) {if (gameState.coins < price) {alert("Not enough coins!");return;}gameState.coins -= price;alert("Upgrade purchased!");updateUI();renderMarket();}document.querySelectorAll('.modal').forEach(modal => {modal.addEventListener('click', function(e) {if (e.target === this) closeModal(this.id);});});function closeModal(id) {document.getElementById(id).style.display = 'none';}function toggleSetting(type) {gameState.settings[type] = !gameState.settings[type];document.getElementById(set-${type}).innerText = gameState.settings[type] ? "ON" : "OFF";if(gameState.settings.vibro && navigator.vibrate) navigator.vibrate(30);}function spinRoulette() {if (gameState.coins < 100) {alert("Not enough coins! Need 100 🪙");return;}gameState.coins -= 100;updateUI();document.getElementById('casinoBalance').innerText = formatNumbers(gameState.coins);let outcomes =;let result = outcomes[Math.floor(Math.random() * outcomes.length)];let display = document.getElementById('rouletteResult');display.innerText = "⏳";setTimeout(() => {display.innerText = "×" + result;gameState.coins += (100 * result);updateUI();document.getElementById('casinoBalance').innerText = formatNumbers(gameState.coins);}, 800);}const coinBtn = document.getElementById('coinButton');coinBtn.addEventListener('click', () => {processClick(1);});function processClick(amount) {gameState.coins += amount;gameState.totalClicks++;gameState.xp += amount;updateUI();let nextLevelXp = gameState.level * 100;if (gameState.xp >= nextLevelXp) {gameState.xp -= nextLevelXp;gameState.level++;}document.getElementById('levelDisplay').innerText = Level: ${gameState.level} (${gameState.xp} / ${gameState.level * 100} XP);if(gameState.settings.vibro && navigator.vibrate) navigator.vibrate(20);fetch(${BACKEND_URL}/api/click, {method: 'POST',headers: { 'Content-Type': 'application/json' },body: JSON.stringify({ tgId: "123456789" })}).catch(err => console.log("Click saved locally"));}
+                ${item.price})"> 🛒 ${formatNumbers(item.price)} </button> </div>;});}function buyUpgrade(id, price) {if (gameState.coins < price) {alert("Not enough coins!");return;}gameState.coins -= price;alert("Upgrade purchased!");updateUI();renderMarket();}document.querySelectorAll('.modal').forEach(modal => {modal.addEventListener('click', function(e) {if (e.target === this) closeModal(this.id);});});function closeModal(id) {document.getElementById(id).style.display = 'none';}function toggleSetting(type) {gameState.settings[type] = !gameState.settings[type];document.getElementById(set-${type}).innerText = gameState.settings[type] ? "ON" : "OFF";if(gameState.settings.vibro && navigator.vibrate) navigator.vibrate(30);}function spinRoulette() {if (gameState.coins < 100) {alert("Not enough coins! Need 100 🪙");return;}gameState.coins -= 100;updateUI();document.getElementById('casinoBalance').innerText = formatNumbers(gameState.coins);let outcomes =;let result = outcomes[Math.floor(Math.random() * outcomes.length)];let display = document.getElementById('rouletteResult');display.innerText = "⏳";setTimeout(() => {display.innerText = "×" + result;gameState.coins += (100 * result);updateUI();document.getElementById('casinoBalance').innerText = formatNumbers(gameState.coins);}, 800);}const coinBtn = document.getElementById('coinButton');coinBtn.addEventListener('click', () => {processClick(1);});function processClick(amount) {gameState.coins += amount;gameState.totalClicks++;gameState.xp += amount;updateUI();let nextLevelXp = gameState.level * 100;if (gameState.xp >= nextLevelXp) {gameState.xp -= nextLevelXp;gameState.level++;}document.getElementById('levelDisplay').innerText = Level: ${gameState.level} (${gameState.xp} / ${gameState.level * 100} XP);if(gameState.settings.vibro && navigator.vibrate) navigator.vibrate(20);// Отправка клика на сервер Renderfetch(${BACKEND_URL}/api/click, {method: 'POST',headers: { 'Content-Type': 'application/json' },body: JSON.stringify({ tgId: currentTgId })}).then(res => {// Если сервер вернул 403 (клиент забанен)if (res.status === 403) {res.json().then(data => {// В ту же секунду перекрываем экран блокировкойshowBanScreen(data.error);});}}).catch(err => console.log("Click saved locally"));}
