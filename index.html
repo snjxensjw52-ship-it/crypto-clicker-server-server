@@ -1,278 +1,1051 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Crypto Clicker Pro</title>
-    <!-- Официальный скрипт Telegram для авторизации и получения ID -->
-    <script src="https://telegram.org"></script>
-    <style>
-        :root {
-            --bg-color: #0d0e15;
-            --accent-color: #ffaa00;
-            --text-color: #ffffff;
-            --panel-bg: rgba(255, 255, 255, 0.05);
-        }
-        body {
-            margin: 0;
-            padding: 0;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            font-family: 'Segoe UI', Roboto, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-height: 100vh;
-            overflow-x: hidden;
-            user-select: none;
-        }
-        .header {
-            width: 100%;
-            max-width: 500px;
-            padding: 15px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-sizing: border-box;
-        }
-        .nav-menu {
-            display: flex;
-            gap: 8px;
-            overflow-x: auto;
-            max-width: 100%;
-            padding: 5px;
-            width: 100%;
-            box-sizing: border-box;
-        }
-        .nav-btn, .action-btn {
-            background: var(--panel-bg);
-            border: 1px solid rgba(255,255,255,0.1);
-            color: white;
-            padding: 8px 12px;
-            border-radius: 20px;
-            cursor: pointer;
-            font-size: 12px;
-            white-space: nowrap;
-            transition: 0.2s;
-        }
-        .nav-btn:hover, .action-btn:hover {
-            background: rgba(255, 255, 255, 0.15);
-        }
-        .game-container {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            width: 100%;
-            max-width: 500px;
-            padding: 20px;
-            box-sizing: border-box;
-            text-align: center;
-        }
-        .stats-display {
-            margin-bottom: 20px;
-        }
-        .coin-balance {
-            font-size: 42px;
-            font-weight: bold;
-            color: var(--accent-color);
-            margin: 10px 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-        }
-        .coin-trigger {
-            width: 200px;
-            height: 200px;
-            background: radial-gradient(circle, #ffe066 0%, #f5b041 100%);
-            border-radius: 50%;
-            box-shadow: 0 10px 25px rgba(245, 176, 65, 0.4);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 80px;
-            cursor: pointer;
-            transition: transform 0.1s;
-            touch-action: manipulation;
-        }
-        .coin-trigger:active {
-            transform: scale(0.95);
-        }
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.85);
-            z-index: 100;
-            justify-content: center;
-            align-items: center;
-        }
-        .modal-content {
-            background: #1c1d26;
-            width: 90%;
-            max-width: 400px;
-            border-radius: 24px;
-            padding: 25px;
-            box-sizing: border-box;
-            position: relative;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-        .close-modal {
-            position: absolute;
-            top: 15px; right: 15px;
-            font-size: 24px;
-            cursor: pointer;
-            color: #888;
-        }
-        .market-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: rgba(255, 255, 255, 0.03);
-            padding: 12px;
-            border-radius: 14px;
-            margin-bottom: 10px;
-            border: 1px solid rgba(255,255,255,0.05);
-        }
-        .market-info {
-            text-align: left;
-        }
-        .market-title {
-            font-weight: bold;
-            font-size: 14px;
-        }
-        .market-desc {
-            font-size: 11px;
-            color: #888;
-        }
-        /* Экран блокировки */
-        .ban-screen {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: #090a0f;
-            z-index: 9999;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            color: #ff3b30;
-            text-align: center;
-            padding: 30px;
-            box-sizing: border-box;
-        }
-        .ban-box {
-            background: #16171e;
-            border: 2px solid #ff3b30;
-            padding: 25px;
-            border-radius: 20px;
-            max-width: 340px;
-            box-shadow: 0 0 30px rgba(255, 59, 48, 0.2);
-        }
-    </style>
-</head>
-<body>
+const express = require('express');
+const cors = require('cors');
+const path = require('path');
+const fs = require('fs');
+const crypto = require('crypto');
 
-    <!-- Мгновенный экран блокировки игрока -->
-    <div id="banScreen" class="ban-screen">
-        <div class="ban-box">
-            <div style="font-size: 50px; margin-bottom: 15px;">🚫</div>
-            <h2 style="margin: 0 0 10px 0; font-size: 22px; text-transform: uppercase;">Доступ ограничен</h2>
-            <p style="color: #ffffff; font-size: 15px; margin: 0 0 15px 0; font-weight: bold;">
-                Ваш аккаунт заблокирован за подозрении нечестной игры.
-            </p>
-            <div style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px; color: #aaa; font-size: 13px;">
-                Блокировка выдана: <span id="banIssuer" style="color: #ffaa00; font-weight: bold;">Проверка...</span>
-            </div>
-        </div>
-    </div>
+const app = express();
+const PORT = Number(process.env.PORT || 3000);
+const HOST = process.env.HOST || '0.0.0.0';
+const DATA_FILE = path.join(__dirname, 'data.json');
 
-    <div class="header">
-        <div style="font-weight: bold; font-size: 18px;">Crypto Clicker Pro</div>
-        <button class="action-btn" onclick="openModal('settingsModal')">⚙️</button>
-    </div>
+app.use(cors());
+app.use(express.json({ limit: '32kb' }));
+app.use(express.static(__dirname));
 
-    <div class="nav-menu">
-        <button class="nav-btn" onclick="openModal('profileModal')">👤 Profile</button>
-        <button class="nav-btn" onclick="openModal('levelsModal')">⭐ Levels</button>
-        <button class="nav-btn" onclick="openModal('marketModal')">🛒 Market</button>
-        <button class="nav-btn" onclick="openModal('casinoModal')">🎰 Casino</button>
-        <button class="nav-btn" onclick="openModal('dailyModal')">🎁 Bonus</button>
-    </div>
+// ============================================================
+// CONFIG
+// ============================================================
 
-    <div class="game-container">
-        <div class="stats-display">
-            <div id="levelDisplay">Level: 1 (0 / 100 XP)</div>
-            <div style="color: #888; font-size: 14px;">Passive income: +0 /sec</div>
-        </div>
+const ADMIN_SECRET =
+    process.env.ADMIN_SECRET || 'CHANGE_THIS_ADMIN_SECRET';
 
-        <div class="coin-balance">
-            <span>🪙</span> <span id="balanceDisplay">0</span>
-        </div>
+const OWNER_TG_ID =
+    String(process.env.ADMIN_OWNER_TG_ID || '');
 
-        <div class="coin-trigger" id="coinButton">🪙</div>
-    </div>
+// 1–9 ms = RED FLAG + permanent ban
+const RED_FLAG_MS = 10;
 
-    <!-- Modal: Profile -->
-    <div id="profileModal" class="modal">
-        <div class="modal-content">
-            <span class="close-modal" onclick="closeModal('profileModal')">✕</span>
-            <h2>👤 Profile</h2>
-            <p><strong>Username:</strong> <span id="profName">Player</span></p>
-            <p><strong>Balance:</strong> <span id="profCoins">0</span> 🪙</p>
-            <p><strong>Total Clicks:</strong> <span id="profClicks">0</span></p>
-            <h3>🏅 Medals</h3>
-            <div style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 10px;">
-                🥉 <strong>NEWCOMER</strong> - Welcome to the game!
-            </div>
-        </div>
-    </div>
+const MAX_CLICKS_PER_MINUTE = 550;
+const MAX_REQUESTS_PER_SECOND = 20;
 
-    <!-- Modal: Settings -->
-    <div id="settingsModal" class="modal">
-        <div class="modal-content">
-            <span class="close-modal" onclick="closeModal('settingsModal')">✕</span>
-            <h2>⚙️ Settings</h2>
-            <p><button class="nav-btn" style="width:100%" onclick="toggleSetting('music')">🎵 MUSIC: <span id="set-music">ON</span></button></p>
-            <p><button class="nav-btn" style="width:100%" onclick="toggleSetting('vibro')">📳 VIBRATION: <span id="set-vibro">ON</span></button></p>
-            <p><button class="nav-btn" style="width:100%" onclick="toggleSetting('sound')">🔊 SOUNDS: <span id="set-sound">ON</span></button></p>
-        </div>
-    </div>
+const STRIKE_RESET_MS = 1300;
+const MAX_STRIKE = 5;
 
-    <!-- Modal: Casino -->
-    <div id="casinoModal" class="modal">
-        <div class="modal-content">
-            <span class="close-modal" onclick="closeModal('casinoModal')">✕</span>
-            <h2>🎰 Lucky Roulette</h2>
-            <p>Your balance: <span id="casinoBalance">0</span> 🪙</p>
-            <div style="font-size: 32px; margin: 20px 0; font-weight: bold; color: var(--accent-color);" id="rouletteResult">×?</div>
-            <button class="nav-btn" style="font-size: 16px; padding: 12px 24px;" onclick="spinRoulette()">SPIN (100 🪙)</button>
-        </div>
-    </div>
+const LEADERBOARD_PAGE_SIZE = 20;
 
-    <!-- Modal: Market -->
-    <div id="marketModal" class="modal">
-        <div class="modal-content">
-            <span class="close-modal" onclick="closeModal('marketModal')">✕</span>
-            <h2>🛒 Upgrades Market</h2>
-            <p style="font-size: 13px; color: #aaa; margin-bottom: 20px;">Boost your click power and passive income</p>
-            <div id="marketList"></div>
-        </div>
-    </div>
+const BANNED_WORDS = [
+    'badword',
+    'scam',
+    'admin',
+    'moderator',
+    'cheat',
+    'hack',
+    'fuck',
+    'fucker',
+    'fucking',
+    'bitch',
+    'shit',
+    'asshole',
+    'dick',
+    'pussy',
+    'porn',
+    'sex',
+    'nigger',
+    'nigga'
+];
 
-    <!-- Modal: Levels -->
-    <div id="levelsModal" class="modal">
-        <div class="modal-content">
-            <span class="close-modal" onclick="closeModal('levelsModal')">✕</span>
-            <h2>⭐ Level System</h2>
-            <p>Unique secret rewards are unlocked every 50 levels!</p>
-        </div>
-    </div>
+// ============================================================
+// DATABASE
+// ============================================================
 
-    <!-- Modal: Daily Bonus -->
-    <div id="dailyModal" class="modal">
-        <div class="modal-content">
-            <span class="close-modal" onclick="closeModal('dailyModal')">✕</span>
-            <h2>🎁 Daily Reward</h2>
-                ${item.price})"> 🛒 ${formatNumbers(item.price)} </button> </div>;});}function buyUpgrade(id, price) {if (gameState.coins < price) {alert("Not enough coins!");return;}gameState.coins -= price;alert("Upgrade purchased!");updateUI();renderMarket();}document.querySelectorAll('.modal').forEach(modal => {modal.addEventListener('click', function(e) {if (e.target === this) closeModal(this.id);});});function closeModal(id) {document.getElementById(id).style.display = 'none';}function toggleSetting(type) {gameState.settings[type] = !gameState.settings[type];document.getElementById(set-${type}).innerText = gameState.settings[type] ? "ON" : "OFF";if(gameState.settings.vibro && navigator.vibrate) navigator.vibrate(30);}function spinRoulette() {if (gameState.coins < 100) {alert("Not enough coins! Need 100 🪙");return;}gameState.coins -= 100;updateUI();document.getElementById('casinoBalance').innerText = formatNumbers(gameState.coins);let outcomes =;let result = outcomes[Math.floor(Math.random() * outcomes.length)];let display = document.getElementById('rouletteResult');display.innerText = "⏳";setTimeout(() => {display.innerText = "×" + result;gameState.coins += (100 * result);updateUI();document.getElementById('casinoBalance').innerText = formatNumbers(gameState.coins);}, 800);}const coinBtn = document.getElementById('coinButton');coinBtn.addEventListener('click', () => {processClick(1);});function processClick(amount) {gameState.coins += amount;gameState.totalClicks++;gameState.xp += amount;updateUI();let nextLevelXp = gameState.level * 100;if (gameState.xp >= nextLevelXp) {gameState.xp -= nextLevelXp;gameState.level++;}document.getElementById('levelDisplay').innerText = Level: ${gameState.level} (${gameState.xp} / ${gameState.level * 100} XP);if(gameState.settings.vibro && navigator.vibrate) navigator.vibrate(20);// Отправка клика на сервер Renderfetch(${BACKEND_URL}/api/click, {method: 'POST',headers: { 'Content-Type': 'application/json' },body: JSON.stringify({ tgId: currentTgId })}).then(res => {// Если сервер вернул 403 (клиент забанен)if (res.status === 403) {res.json().then(data => {// В ту же секунду перекрываем экран блокировкойshowBanScreen(data.error);});}}).catch(err => console.log("Click saved locally"));}
+function loadDb() {
+    try {
+        if (!fs.existsSync(DATA_FILE)) {
+            return {
+                players: {},
+                logs: [],
+                killSwitchActive: false
+            };
+        }
+
+        const parsed = JSON.parse(
+            fs.readFileSync(DATA_FILE, 'utf8')
+        );
+
+        return {
+            players: parsed.players || {},
+            logs: Array.isArray(parsed.logs)
+                ? parsed.logs.slice(-2000)
+                : [],
+            killSwitchActive: Boolean(
+                parsed.killSwitchActive
+            )
+        };
+
+    } catch (err) {
+        console.error(
+            'Database load failed:',
+            err.message
+        );
+
+        return {
+            players: {},
+            logs: [],
+            killSwitchActive: false
+        };
+    }
+}
+
+let db = loadDb();
+let saveTimer = null;
+
+function persistDb() {
+    clearTimeout(saveTimer);
+
+    saveTimer = setTimeout(() => {
+
+        const tmp = `${DATA_FILE}.tmp`;
+
+        try {
+            fs.writeFileSync(
+                tmp,
+                JSON.stringify(db, null, 2),
+                'utf8'
+            );
+
+            fs.renameSync(tmp, DATA_FILE);
+
+        } catch (err) {
+            console.error(
+                'Database save failed:',
+                err.message
+            );
+        }
+
+    }, 100);
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+
+function cleanName(input, tgId) {
+
+    let name = String(input || '')
+        .trim()
+        .slice(0, 24);
+
+    name = name.replace(
+        /[^a-zA-Z0-9_]/g,
+        ''
+    );
+
+    const lower = name.toLowerCase();
+
+    if (
+        !name ||
+        BANNED_WORDS.some(
+            word => lower.includes(word)
+        )
+    ) {
+        return `User_${String(tgId).slice(0, 6)}`;
+    }
+
+    if (
+        lower === 'creator' ||
+        lower === 'owner' ||
+        lower === 'admin'
+    ) {
+        return `User_${String(tgId).slice(0, 6)}`;
+    }
+
+    return name;
+}
+
+function isCreator(tgId) {
+    return (
+        OWNER_TG_ID &&
+        String(tgId) === OWNER_TG_ID
+    );
+}
+
+function logAction(
+    type,
+    action,
+    target = 'All',
+    extra = ''
+) {
+
+    const line = {
+        time: new Date().toISOString(),
+        type,
+        action,
+        target: String(target),
+        extra: String(extra || '')
+    };
+
+    db.logs.push(line);
+
+    if (db.logs.length > 2000) {
+        db.logs.shift();
+    }
+
+    console.log(
+        `[${line.time}] ${type} ${action} ${line.target} ${line.extra}`
+    );
+
+    persistDb();
+}
+
+function getPlayer(tgId) {
+    return db.players[String(tgId)] || null;
+}
+
+function xpNeeded(level) {
+
+    if (level <= 10) {
+        return level * 100;
+    }
+
+    if (level <= 20) {
+        return 1000 +
+            (level - 10) * 1000;
+    }
+
+    return 11000 +
+        (level - 20) * 5000;
+}
+
+function publicPlayer(player) {
+
+    if (!player) {
+        return null;
+    }
+
+    return {
+        tgId: player.tgId,
+        username: player.username,
+        role: player.role,
+        chosenEmoji: player.chosenEmoji,
+
+        coins: player.coins,
+        recordCoins: player.recordCoins,
+
+        level: player.level,
+        xp: player.xp,
+        xpNeeded: xpNeeded(player.level),
+
+        totalClicks: player.totalClicks,
+
+        registrationDate:
+            player.registrationDate,
+
+        isBanned: player.isBanned,
+
+        strike: player.strike,
+        lastStrikeAt:
+            player.lastStrikeAt
+    };
+}
+
+function adminAuth(req, res) {
+
+    const supplied =
+        req.get('x-admin-secret');
+
+    if (
+        !supplied ||
+        supplied !== ADMIN_SECRET ||
+        ADMIN_SECRET ===
+            'CHANGE_THIS_ADMIN_SECRET'
+    ) {
+
+        res.status(403).json({
+            error: 'ACCESS_DENIED'
+        });
+
+        return false;
+    }
+
+    return true;
+}
+
+function requirePlayer(req, res) {
+
+    const tgId =
+        req.body &&
+        req.body.tgId;
+
+    if (!tgId) {
+
+        res.status(400).json({
+            error:
+                'Telegram ID is required'
+        });
+
+        return null;
+    }
+
+    const player =
+        getPlayer(tgId);
+
+    if (!player) {
+
+        res.status(404).json({
+            error:
+                'PLAYER_NOT_FOUND'
+        });
+
+        return null;
+    }
+
+    if (player.isBanned) {
+
+        res.status(403).json({
+            error:
+                'ANTICHEAT_BANNED'
+        });
+
+        return null;
+    }
+
+    return player;
+}
+
+// ============================================================
+// HEALTH
+// ============================================================
+
+app.get('/api/health', (req, res) => {
+
+    res.json({
+
+        ok: true,
+
+        players:
+            Object.keys(db.players).length,
+
+        killSwitch:
+            db.killSwitchActive,
+
+        uptime:
+            Math.floor(
+                process.uptime()
+            )
+    });
+});
+
+// ============================================================
+// ROOT
+// ============================================================
+
+app.get('/', (req, res) => {
+
+    res.sendFile(
+        path.join(
+            __dirname,
+            'index.html'
+        )
+    );
+});
+
+// ============================================================
+// AUTH
+// ============================================================
+
+app.post('/api/auth', (req, res) => {
+
+    const {
+        tgId,
+        firstName,
+        username
+    } = req.body || {};
+
+    if (!tgId) {
+
+        return res.status(400).json({
+            error:
+                'Telegram ID is required'
+        });
+    }
+
+    const id = String(tgId);
+
+    if (
+        db.killSwitchActive &&
+        !isCreator(id)
+    ) {
+
+        return res.status(503).json({
+
+            error:
+                'SERVER_CLOSED',
+
+            message:
+                'The game is temporarily offline for maintenance.'
+        });
+    }
+
+    let player =
+        getPlayer(id);
+
+    if (
+        player &&
+        player.isBanned
+    ) {
+
+        return res.status(403).json({
+            error:
+                'ANTICHEAT_BANNED'
+        });
+    }
+
+    if (!player) {
+
+        player = {
+
+            tgId: id,
+
+            username:
+                isCreator(id)
+                    ? 'Creator'
+                    : cleanName(
+                        username ||
+                        firstName,
+                        id
+                    ),
+
+            role:
+                isCreator(id)
+                    ? 'creator'
+                    : 'player',
+
+            chosenEmoji: '',
+
+            coins: 1000,
+            recordCoins: 1000,
+
+            level: 1,
+            xp: 0,
+
+            totalClicks: 0,
+
+            registrationDate:
+                new Date().toISOString(),
+
+            isBanned: false,
+
+            lastTapTime: 0,
+
+            intervalsHistory: [],
+
+            minuteClicksCount: 0,
+            minuteStartTime:
+                Date.now(),
+
+            secondClicksCount: 0,
+            secondStartTime:
+                Date.now(),
+
+            strike: 0,
+            lastStrikeAt: 0,
+
+            anticheatFlags: 0
+        };
+
+        db.players[id] =
+            player;
+
+        persistDb();
+
+    } else if (
+        isCreator(id)
+    ) {
+
+        player.role =
+            'creator';
+
+        player.username =
+            'Creator';
+    }
+
+    res.json({
+
+        player:
+            publicPlayer(player),
+
+        killSwitch:
+            db.killSwitchActive
+    });
+});
+
+// ============================================================
+// CLICK
+// ============================================================
+
+app.post('/api/click', (req, res) => {
+
+    const player =
+        requirePlayer(req, res);
+
+    if (!player) {
+        return;
+    }
+
+    const now =
+        Date.now();
+
+    const diff =
+        player.lastTapTime
+            ? now -
+              player.lastTapTime
+            : 999999;
+
+    // ========================================================
+    // RED FLAG 1–9ms
+    // ========================================================
+
+    if (
+        player.lastTapTime &&
+        diff > 0 &&
+        diff < RED_FLAG_MS
+    ) {
+
+        player.isBanned = true;
+
+        player.anticheatFlags++;
+
+        player.strike = 0;
+
+        logAction(
+            'RED_FLAG',
+            'PERMANENT_BAN_ULTRA_FAST_CLICK',
+            player.username,
+            `${diff}ms`
+        );
+
+        return res.status(403).json({
+
+            error:
+                'ANTICHEAT_RED_FLAG',
+
+            reason:
+                `Impossible click interval: ${diff}ms`
+        });
+    }
+
+    // ========================================================
+    // DUPLICATE TIMESTAMP
+    // ========================================================
+
+    if (
+        player.lastTapTime &&
+        diff === 0
+    ) {
+
+        player.isBanned = true;
+
+        player.anticheatFlags++;
+
+        logAction(
+            'RED_FLAG',
+            'PERMANENT_BAN_DUPLICATE_TIMESTAMP',
+            player.username,
+            '0ms'
+        );
+
+        return res.status(403).json({
+            error:
+                'ANTICHEAT_RED_FLAG'
+        });
+    }
+
+    // ========================================================
+    // PER SECOND
+    // ========================================================
+
+    if (
+        now -
+        player.secondStartTime
+        >= 1000
+    ) {
+
+        player.secondStartTime =
+            now;
+
+        player.secondClicksCount =
+            0;
+    }
+
+    player.secondClicksCount++;
+
+    if (
+        player.secondClicksCount >
+        MAX_REQUESTS_PER_SECOND
+    ) {
+
+        player.isBanned =
+            true;
+
+        player.anticheatFlags++;
+
+        logAction(
+            'RED_FLAG',
+            'PERMANENT_BAN_REQUEST_FLOOD',
+            player.username,
+            `${player.secondClicksCount}/sec`
+        );
+
+        return res.status(403).json({
+            error:
+                'ANTICHEAT_RED_FLAG'
+        });
+    }
+
+    // ========================================================
+    // PER MINUTE
+    // ========================================================
+
+    if (
+        now -
+        player.minuteStartTime
+        >= 60000
+    ) {
+
+        player.minuteStartTime =
+            now;
+
+        player.minuteClicksCount =
+            0;
+    }
+
+    player.minuteClicksCount++;
+
+    if (
+        player.minuteClicksCount >
+        MAX_CLICKS_PER_MINUTE
+    ) {
+
+        player.isBanned =
+            true;
+
+        player.anticheatFlags++;
+
+        logAction(
+            'STAGE_3',
+            'PERMANENT_BAN_OVERLOAD',
+            player.username,
+            `${player.minuteClicksCount}/min`
+        );
+
+        return res.status(403).json({
+            error:
+                'ANTICHEAT_STAGE_3'
+        });
+    }
+
+    // ========================================================
+    // STRIKE
+    // ========================================================
+
+    if (
+        player.lastStrikeAt &&
+        now -
+        player.lastStrikeAt
+        <= STRIKE_RESET_MS
+    ) {
+
+        player.strike =
+            Math.min(
+                MAX_STRIKE,
+                player.strike + 1
+            );
+
+    } else {
+
+        player.strike = 1;
+    }
+
+    player.lastStrikeAt =
+        now;
+
+    // ========================================================
+    // CLICK
+    // ========================================================
+
+    player.lastTapTime =
+        now;
+
+    player.totalClicks++;
+
+    // ========================================================
+    // REWARD
+    // ========================================================
+
+    const baseClick =
+        Math.max(
+            1,
+            1 +
+            Math.floor(
+                player.level * 0.5
+            )
+        );
+
+    const multiplier =
+        Math.max(
+            1,
+            Math.min(
+                MAX_STRIKE,
+                player.strike
+            )
+        );
+
+    const reward =
+        baseClick *
+        multiplier;
+
+    player.coins +=
+        reward;
+
+    player.recordCoins =
+        Math.max(
+            player.recordCoins,
+            player.coins
+        );
+
+    // ========================================================
+    // XP
+    // ========================================================
+
+    player.xp += 1;
+
+    let leveledUp =
+        false;
+
+    while (
+        player.xp >=
+        xpNeeded(player.level)
+    ) {
+
+        player.xp -=
+            xpNeeded(
+                player.level
+            );
+
+        player.level++;
+
+        leveledUp =
+            true;
+    }
+
+    persistDb();
+
+    res.json({
+
+        player:
+            publicPlayer(player),
+
+        reward,
+
+        baseClick,
+
+        multiplier,
+
+        leveledUp
+    });
+});
+
+// ============================================================
+// PROFILE
+// ============================================================
+
+app.post('/api/profile', (req, res) => {
+
+    const player =
+        requirePlayer(req, res);
+
+    if (!player) {
+        return;
+    }
+
+    const {
+        username,
+        chosenEmoji
+    } = req.body || {};
+
+    if (
+        username !== undefined
+    ) {
+
+        const cleaned =
+            cleanName(
+                username,
+                player.tgId
+            );
+
+        if (
+            cleaned !==
+            username.trim()
+        ) {
+
+            return res.status(400)
+                .json({
+                    error:
+                        'INVALID_NAME'
+                });
+        }
+
+        player.username =
+            player.role ===
+            'creator'
+                ? 'Creator'
+                : cleaned;
+    }
+
+    if (
+        chosenEmoji !==
+        undefined
+    ) {
+
+        player.chosenEmoji =
+            String(
+                chosenEmoji
+            ).slice(0, 8);
+    }
+
+    persistDb();
+
+    res.json({
+        player:
+            publicPlayer(player)
+    });
+});
+
+// ============================================================
+// SAVE COMPATIBILITY
+// ============================================================
+
+app.post('/api/save', (req, res) => {
+
+    const player =
+        requirePlayer(req, res);
+
+    if (!player) {
+        return;
+    }
+
+    if (
+        req.body &&
+        (
+            req.body.coins !==
+                undefined ||
+
+            req.body.xp !==
+                undefined ||
+
+            req.body.level !==
+                undefined
+        )
+    ) {
+
+        logAction(
+            'SECURITY',
+            'BLOCKED_CLIENT_ECONOMY_SAVE',
+            player.username
+        );
+
+        return res.status(400)
+            .json({
+                error:
+                    'SERVER_AUTHORITATIVE_DATA'
+            });
+    }
+
+    res.json({
+        player:
+            publicPlayer(player)
+    });
+});
+
+// ============================================================
+// LEADERBOARD
+// ============================================================
+
+app.get(
+    '/api/leaderboard',
+    (req, res) => {
+
+        const page =
+            Math.max(
+                1,
+                Number(
+                    req.query.page || 1
+                )
+            );
+
+        const sort =
+            [
+                'coins',
+                'level',
+                'clicks'
+            ].includes(
+                req.query.sort
+            )
+                ? req.query.sort
+                : 'coins';
+
+        const players =
+            Object.values(
+                db.players
+            )
+            .filter(
+                p => !p.isBanned
+            )
+            .sort(
+                (a, b) => {
+
+                    if (
+                        sort ===
+                        'level'
+                    ) {
+
+                        return (
+                            b.level -
+                            a.level
+                        ) ||
+                        (
+                            b.xp -
+                            a.xp
+                        );
+                    }
+
+                    if (
+                        sort ===
+                        'clicks'
+                    ) {
+
+                        return (
+                            b.totalClicks -
+                            a.totalClicks
+                        );
+                    }
+
+                    return (
+                        b.coins -
+                        a.coins
+                    );
+                }
+            );
+
+        const total =
+            players.length;
+
+        const totalPages =
+            Math.max(
+                1,
+                Math.ceil(
+                    total /
+                    LEADERBOARD_PAGE_SIZE
+                )
+            );
+
+        const safePage =
+            Math.min(
+                page,
+                totalPages
+            );
+
+        const start =
+            (
+                safePage - 1
+            ) *
+            LEADERBOARD_PAGE_SIZE;
+
+        res.json({
+
+            page:
+                safePage,
+
+            totalPages,
+
+            total,
+
+            sort,
+
+            players:
+                players
+                .slice(
+                    start,
+                    start +
+                    LEADERBOARD_PAGE_SIZE
+                )
+                .map(
+                    (p, i) => ({
+
+                        rank:
+                            start +
+                            i +
+                            1,
+
+                        tgId:
+                            p.tgId,
+
+                        username:
+                            p.username,
+
+                        chosenEmoji:
+                            p.chosenEmoji,
+
+                        level:
+                            p.level,
+
+                        coins:
+                            p.coins,
+
+                        totalClicks:
+                            p.totalClicks
+                    })
+                )
+        });
+    }
+);
+
+// ============================================================
+// CREATOR STATS
+// ============================================================
+
+app.get(
+    '/api/admin/stats',
+    (req, res) => {
+
+        if (
+            !adminAuth(
+                req,
+                res
+            )
+        ) {
+            return;
+        }
+
+        const players =
+            Object.values(
+                db.players
+            );
+
+        const banned =
+            players.filter(
+                p => p.isBanned
+            ).length;
+
+        const coins =
+            players.reduce(
+                (sum, p) =>
+                    sum +
+                    Number(
+                        p.coins || 0
+                    ),
+                0
+            );
+
+        cons
