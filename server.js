@@ -149,3 +149,273 @@ const ALLOWED_TEST_USERS = {
     }
 
 };
+/*
+========================================================
+ACHIEVEMENTS
+========================================================
+*/
+
+app.get(
+    '/api/achievements',
+    requirePlayer,
+    (req, res) => {
+
+        res.json({
+
+            medals:
+                MEDALS,
+
+            titles:
+                TITLES,
+
+            playerMedals:
+                req.player.medals,
+
+            playerTitles:
+                req.player.titles,
+
+            selectedMedals:
+                req.player.selectedMedals,
+
+            selectedTitle:
+                req.player.selectedTitle
+
+        });
+
+    }
+);
+
+/*
+========================================================
+PROFILE
+========================================================
+*/
+
+app.post(
+    '/api/profile',
+    requirePlayer,
+    async (req, res) => {
+
+        const player =
+            req.player;
+
+        if (
+            typeof req.body?.username ===
+            'string'
+        ) {
+
+            const name =
+                cleanName(
+                    req.body.username
+                );
+
+            if (!name) {
+
+                return res.status(400).json({
+                    error:
+                        'INVALID_USERNAME'
+                });
+
+            }
+
+            player.username =
+                name;
+
+        }
+
+        if (
+            typeof req.body?.selectedTitle ===
+            'string'
+        ) {
+
+            const title =
+                req.body.selectedTitle;
+
+            if (
+                title !== '' &&
+                !player.titles.includes(
+                    title
+                )
+            ) {
+
+                return res.status(400).json({
+                    error:
+                        'TITLE_NOT_OWNED'
+                });
+
+            }
+
+            player.selectedTitle =
+                title;
+
+        }
+
+        if (
+            Array.isArray(
+                req.body?.selectedMedals
+            )
+        ) {
+
+            player.selectedMedals =
+                req.body.selectedMedals
+                    .filter(
+                        id =>
+                            player.medals
+                                .includes(id)
+                    )
+                    .slice(0, 5);
+
+        }
+
+        await queueSave();
+
+        return res.json({
+
+            ok:
+                true,
+
+            player:
+                publicPlayer(
+                    player
+                )
+
+        });
+
+    }
+);
+
+/*
+========================================================
+LEADERBOARD
+========================================================
+*/
+
+app.get(
+    '/api/leaderboard',
+    requirePlayer,
+    (req, res) => {
+
+        const sort =
+            [
+                'coins',
+                'level',
+                'clicks',
+                'earned'
+            ].includes(
+                req.query.sort
+            )
+                ? req.query.sort
+                : 'coins';
+
+        const players =
+            Object.values(
+                db.players
+            )
+            .filter(
+                player =>
+                    !player.isBanned
+            );
+
+        players.sort(
+            (a, b) => {
+
+                if (
+                    sort ===
+                    'level'
+                ) {
+
+                    return (
+                        b.level -
+                        a.level
+                    ) ||
+                    (
+                        b.xp -
+                        a.xp
+                    );
+
+                }
+
+                if (
+                    sort ===
+                    'clicks'
+                ) {
+
+                    return (
+                        b.totalClicks -
+                        a.totalClicks
+                    );
+
+                }
+
+                if (
+                    sort ===
+                    'earned'
+                ) {
+
+                    return (
+                        b.totalEarned -
+                        a.totalEarned
+                    );
+
+                }
+
+                return (
+                    b.coins -
+                    a.coins
+                );
+
+            }
+        );
+
+        const result =
+            players.map(
+                (player, index) => ({
+
+                    rank:
+                        index + 1,
+
+                    tgId:
+                        player.tgId,
+
+                    username:
+                        player.username,
+
+                    role:
+                        player.role,
+
+                    coins:
+                        player.coins,
+
+                    level:
+                        player.level,
+
+                    xp:
+                        player.xp,
+
+                    totalClicks:
+                        player.totalClicks,
+
+                    totalEarned:
+                        player.totalEarned,
+
+                    medals:
+                        player.medals.length,
+
+                    title:
+                        player.selectedTitle
+
+                })
+            );
+
+        return res.json({
+
+            sort,
+
+            players:
+                result
+
+        });
+
+    }
+);
+
