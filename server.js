@@ -11,9 +11,9 @@ const app = express();
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || '0.0.0.0';
 
-const BOT_TOKEN = process.env.BOT_TOKEN || '';
-const ADMIN_SECRET = process.env.ADMIN_SECRET || '';
-const ADMIN_OWNER_TG_ID = String(process.env.ADMIN_OWNER_TG_ID || '');
+const BOT_TOKEN = process.env.BOT_TOKEN || '8952573753:AAGMx4EUfLkJAJ013h9kNJoECnNpKdqnxk4';
+const ADMIN_SECRET = process.env.ADMIN_SECRET || 'ADMIN2011';
+const ADMIN_OWNER_TG_ID = String(process.env.ADMIN_OWNER_TG_ID || '8745499515');
 
 const CLOSED_TEST =
     String(process.env.CLOSED_TEST || 'true').toLowerCase() === 'true';
