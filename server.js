@@ -1015,6 +1015,400 @@ app.delete(
 
     }
 );
+/*
+========================================================
+ADMIN — PLAYERS
+========================================================
+*/
+
+app.get(
+    '/api/admin/players',
+    requireAdmin,
+    (req, res) => {
+
+        const players =
+            Object.values(
+                db.players
+            )
+            .map(
+                player =>
+                    publicPlayer(
+                        player
+                    )
+            );
+
+        return res.json({
+
+            count:
+                players.length,
+
+            players
+
+        });
+
+    }
+);
+
+/*
+========================================================
+ADMIN — PLAYER
+========================================================
+*/
+
+app.get(
+    '/api/admin/player/:tgId',
+    requireAdmin,
+    (req, res) => {
+
+        const tgId =
+            String(
+                req.params.tgId || ''
+            );
+
+        const player =
+            db.players[tgId];
+
+        if (!player) {
+
+            return res.status(404).json({
+                error:
+                    'PLAYER_NOT_FOUND'
+            });
+
+        }
+
+        normalizePlayer(
+            player
+        );
+
+        return res.json({
+
+            player:
+                publicPlayer(
+                    player
+                )
+
+        });
+
+    }
+);
+
+/*
+========================================================
+ADMIN — BAN
+========================================================
+*/
+
+app.post(
+    '/api/admin/ban',
+    requireAdmin,
+    async (req, res) => {
+
+        const tgId =
+            String(
+                req.body?.tgId || ''
+            );
+
+        const reason =
+            String(
+                req.body?.reason ||
+                'Banned by administrator.'
+            )
+            .slice(0, 300);
+
+        const player =
+            db.players[tgId];
+
+        if (!player) {
+
+            return res.status(404).json({
+                error:
+                    'PLAYER_NOT_FOUND'
+            });
+
+        }
+
+        player.isBanned =
+            true;
+
+        player.banReason =
+            reason;
+
+        log(
+            'ADMIN',
+            'BAN',
+            player.username,
+            {
+                tgId,
+                reason
+            }
+        );
+
+        await queueSave();
+
+        return res.json({
+
+            ok:
+                true,
+
+            player:
+                publicPlayer(
+                    player
+                )
+
+        });
+
+    }
+);
+
+/*
+========================================================
+ADMIN — UNBAN
+========================================================
+*/
+
+app.post(
+    '/api/admin/unban',
+    requireAdmin,
+    async (req, res) => {
+
+        const tgId =
+            String(
+                req.body?.tgId || ''
+            );
+
+        const player =
+            db.players[tgId];
+
+        if (!player) {
+
+            return res.status(404).json({
+                error:
+                    'PLAYER_NOT_FOUND'
+            });
+
+        }
+
+        player.isBanned =
+            false;
+
+        player.banReason =
+            '';
+
+        player.strike =
+            0;
+
+        player.strikeAt =
+            0;
+
+        player.fastStreakStart =
+            0;
+
+        player.fastStreakCount =
+            0;
+
+        log(
+            'ADMIN',
+            'UNBAN',
+            player.username,
+            {
+                tgId
+            }
+        );
+
+        await queueSave();
+
+        return res.json({
+
+            ok:
+                true,
+
+            player:
+                publicPlayer(
+                    player
+                )
+
+        });
+
+    }
+);
+
+/*
+========================================================
+ADMIN — RESET PLAYER
+========================================================
+*/
+
+app.post(
+    '/api/admin/reset-player',
+    requireAdmin,
+    async (req, res) => {
+
+        const tgId =
+            String(
+                req.body?.tgId || ''
+            );
+
+        const player =
+            db.players[tgId];
+
+        if (!player) {
+
+            return res.status(404).json({
+                error:
+                    'PLAYER_NOT_FOUND'
+            });
+
+        }
+
+        const username =
+            player.username;
+
+        const role =
+            player.role;
+
+        const registeredAt =
+            player.registeredAt;
+
+        db.players[tgId] = {
+
+            tgId,
+
+            username,
+
+            role,
+
+            coins:
+                1000,
+
+            recordCoins:
+                1000,
+
+            totalEarned:
+                1000,
+
+            level:
+                1,
+
+            xp:
+                0,
+
+            totalClicks:
+                0,
+
+            playtimeMs:
+                0,
+
+            registeredAt,
+
+            isBanned:
+                false,
+
+            banReason:
+                '',
+
+            lastTapTime:
+                0,
+
+            fastStreakStart:
+                0,
+
+            fastStreakCount:
+                0,
+
+            minuteStart:
+                now(),
+
+            minuteClicks:
+                0,
+
+            strike:
+                0,
+
+            strikeAt:
+                0,
+
+            dailyStreak:
+                0,
+
+            dailyLast:
+                '',
+
+            medals:
+                [],
+
+            titles:
+                [],
+
+            selectedTitle:
+                '',
+
+            selectedMedals:
+                [],
+
+            vexWins:
+                0,
+
+            casinoWins:
+                0,
+
+            eventCount:
+                0,
+
+            acceptedTermsVersion:
+                '',
+
+            upgrades:
+                {},
+
+            cosmetics:
+                {},
+
+            promoUsed:
+                {},
+
+            hourClicks:
+                0,
+
+            hourCoins:
+                0,
+
+            hourKey:
+                hourKey(),
+
+            lastPlayTick:
+                now(),
+
+            lastPassiveCollect:
+                now()
+
+        };
+
+        log(
+            'ADMIN',
+            'RESET_PLAYER',
+            username,
+            {
+                tgId
+            }
+        );
+
+        await queueSave();
+
+        return res.json({
+
+            ok:
+                true,
+
+            player:
+                publicPlayer(
+                    db.players[tgId]
+                )
+
+        });
+
+    }
+);
 
 
 
