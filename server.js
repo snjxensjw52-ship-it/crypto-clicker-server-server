@@ -713,5 +713,308 @@ app.get(
 
     }
 );
+/*
+========================================================
+PROMO CODES
+========================================================
+*/
+
+app.post(
+    '/api/promo/redeem',
+    requirePlayer,
+    async (req, res) => {
+
+        const player =
+            req.player;
+
+        const code =
+            String(
+                req.body?.code || ''
+            )
+            .trim()
+            .toUpperCase();
+
+        if (!code) {
+
+            return res.status(400).json({
+                error:
+                    'INVALID_PROMO'
+            });
+
+        }
+
+        const promo =
+            db.promos[code];
+
+        if (!promo) {
+
+            return res.status(404).json({
+                error:
+                    'PROMO_NOT_FOUND'
+            });
+
+        }
+
+        if (
+            promo.expiresAt &&
+            promo.expiresAt < now()
+        ) {
+
+            return res.status(400).json({
+                error:
+                    'PROMO_EXPIRED'
+            });
+
+        }
+
+        if (
+            player.promoUsed[code]
+        ) {
+
+            return res.status(400).json({
+                error:
+                    'PROMO_ALREADY_USED'
+            });
+
+        }
+
+        if (
+            promo.maxUses &&
+            promo.uses >=
+                promo.maxUses
+        ) {
+
+            return res.status(400).json({
+                error:
+                    'PROMO_LIMIT_REACHED'
+            });
+
+        }
+
+        const reward =
+            Math.max(
+                0,
+                int(promo.reward)
+            );
+
+        player.coins +=
+            reward;
+
+        player.totalEarned +=
+            reward;
+
+        player.recordCoins =
+            Math.max(
+                player.recordCoins,
+                player.coins
+            );
+
+        player.promoUsed[code] =
+            true;
+
+        promo.uses =
+            int(promo.uses) + 1;
+
+        updateMedals(
+            player
+        );
+
+        updateTitles(
+            player
+        );
+
+        log(
+            'PROMO',
+            'REDEEM',
+            player.username,
+            {
+                code,
+                reward
+            }
+        );
+
+        await queueSave();
+
+        return res.json({
+
+            ok:
+                true,
+
+            reward,
+
+            coins:
+                player.coins
+
+        });
+
+    }
+);
+
+/*
+========================================================
+ADMIN — CREATE PROMO
+========================================================
+*/
+
+app.post(
+    '/api/admin/promo',
+    requireAdmin,
+    async (req, res) => {
+
+        const code =
+            String(
+                req.body?.code || ''
+            )
+            .trim()
+            .toUpperCase();
+
+        const reward =
+            Math.max(
+                0,
+                int(
+                    req.body?.reward
+                )
+            );
+
+        const maxUses =
+            Math.max(
+                0,
+                int(
+                    req.body?.maxUses
+                )
+            );
+
+        const expiresAt =
+            Math.max(
+                0,
+                int(
+                    req.body?.expiresAt
+                )
+            );
+
+        if (
+            !code ||
+            reward <= 0
+        ) {
+
+            return res.status(400).json({
+                error:
+                    'INVALID_PROMO_DATA'
+            });
+
+        }
+
+        db.promos[code] = {
+
+            reward,
+
+            maxUses,
+
+            uses:
+                0,
+
+            expiresAt,
+
+            createdAt:
+                now()
+
+        };
+
+        log(
+            'ADMIN',
+            'CREATE_PROMO',
+            code,
+            {
+                reward,
+                maxUses,
+                expiresAt
+            }
+        );
+
+        await queueSave();
+
+        return res.json({
+
+            ok:
+                true,
+
+            code,
+            reward,
+            maxUses,
+            expiresAt
+
+        });
+
+    }
+);
+
+/*
+========================================================
+ADMIN — LIST PROMOS
+========================================================
+*/
+
+app.get(
+    '/api/admin/promos',
+    requireAdmin,
+    (req, res) => {
+
+        return res.json({
+
+            promos:
+                db.promos
+
+        });
+
+    }
+);
+
+/*
+========================================================
+ADMIN — DELETE PROMO
+========================================================
+*/
+
+app.delete(
+    '/api/admin/promo/:code',
+    requireAdmin,
+    async (req, res) => {
+
+        const code =
+            String(
+                req.params.code || ''
+            )
+            .trim()
+            .toUpperCase();
+
+        if (
+            !db.promos[code]
+        ) {
+
+            return res.status(404).json({
+                error:
+                    'PROMO_NOT_FOUND'
+            });
+
+        }
+
+        delete db.promos[code];
+
+        log(
+            'ADMIN',
+            'DELETE_PROMO',
+            code
+        );
+
+        await queueSave();
+
+        return res.json({
+            ok:
+                true
+        });
+
+    }
+);
+
 
 
