@@ -418,4 +418,300 @@ app.get(
 
     }
 );
+/*
+========================================================
+VEX HOUR
+========================================================
+*/
+
+app.get(
+    '/api/vex',
+    requirePlayer,
+    (req, res) => {
+
+        const player =
+            req.player;
+
+        const currentHour =
+            hourKey();
+
+        const players =
+            Object.values(
+                db.players
+            )
+            .filter(
+                p =>
+                    !p.isBanned &&
+                    p.hourKey ===
+                    currentHour
+            )
+            .sort(
+                (a, b) =>
+                    b.hourCoins -
+                    a.hourCoins
+            );
+
+        const winner =
+            players.length > 0
+                ? players[0]
+                : null;
+
+        const rank =
+            players.findIndex(
+                p =>
+                    p.tgId ===
+                    player.tgId
+            ) + 1;
+
+        res.json({
+
+            hourKey:
+                currentHour,
+
+            hourClicks:
+                player.hourClicks,
+
+            hourCoins:
+                player.hourCoins,
+
+            rank:
+                rank > 0
+                    ? rank
+                    : null,
+
+            players:
+                players
+                    .slice(0, 20)
+                    .map(
+                        (p, index) => ({
+
+                            rank:
+                                index + 1,
+
+                            username:
+                                p.username,
+
+                            clicks:
+                                p.hourClicks,
+
+                            coins:
+                                p.hourCoins,
+
+                            isMe:
+                                p.tgId ===
+                                player.tgId
+
+                        })
+                    ),
+
+            winner:
+                winner
+                    ? {
+                        username:
+                            winner.username,
+
+                        coins:
+                            winner.hourCoins,
+
+                        clicks:
+                            winner.hourClicks
+                    }
+                    : null
+
+        });
+
+    }
+);
+
+/*
+========================================================
+VEX HOUR CLAIM
+========================================================
+*/
+
+app.post(
+    '/api/vex/claim',
+    requirePlayer,
+    async (req, res) => {
+
+        const player =
+            req.player;
+
+        const currentHour =
+            hourKey();
+
+        const players =
+            Object.values(
+                db.players
+            )
+            .filter(
+                p =>
+                    !p.isBanned &&
+                    p.hourKey ===
+                    currentHour
+            )
+            .sort(
+                (a, b) =>
+                    b.hourCoins -
+                    a.hourCoins
+            );
+
+        if (!players.length) {
+
+            return res.status(400).json({
+                error:
+                    'NO_PLAYERS'
+            });
+
+        }
+
+        const winner =
+            players[0];
+
+        if (
+            winner.tgId !==
+            player.tgId
+        ) {
+
+            return res.status(400).json({
+                error:
+                    'NOT_WINNER',
+
+                winner:
+                    winner.username,
+
+                coins:
+                    winner.hourCoins
+            });
+
+        }
+
+        if (
+            player.hourCoins <= 0
+        ) {
+
+            return res.status(400).json({
+                error:
+                    'NO_ACTIVITY'
+            });
+
+        }
+
+        const claimKey =
+            currentHour;
+
+        if (
+            player.vexClaimedHour ===
+            claimKey
+        ) {
+
+            return res.status(400).json({
+                error:
+                    'ALREADY_CLAIMED'
+            });
+
+        }
+
+        player.vexClaimedHour =
+            claimKey;
+
+        player.vexWins++;
+
+        const medalsUnlocked =
+            updateMedals(
+                player
+            );
+
+        const titlesUnlocked =
+            updateTitles(
+                player
+            );
+
+        log(
+            'VEX',
+            'WIN',
+            player.username,
+            {
+                hour:
+                    currentHour,
+
+                clicks:
+                    player.hourClicks,
+
+                coins:
+                    player.hourCoins
+            }
+        );
+
+        await queueSave();
+
+        return res.json({
+
+            ok:
+                true,
+
+            vexWins:
+                player.vexWins,
+
+            medalsUnlocked,
+
+            titlesUnlocked
+
+        });
+
+    }
+);
+
+/*
+========================================================
+DAILY STATUS
+========================================================
+*/
+
+app.get(
+    '/api/daily',
+    requirePlayer,
+    (req, res) => {
+
+        const player =
+            req.player;
+
+        const today =
+            dateKey();
+
+        const claimed =
+            player.dailyLast ===
+            today;
+
+        const nextIndex =
+            Math.min(
+                DAILY_REWARDS.length - 1,
+                Math.max(
+                    0,
+                    player.dailyStreak
+                )
+            );
+
+        res.json({
+
+            today,
+
+            claimed,
+
+            streak:
+                player.dailyStreak,
+
+            rewards:
+                DAILY_REWARDS,
+
+            nextReward:
+                DAILY_REWARDS[
+                    nextIndex
+                ]
+
+        });
+
+    }
+);
+
 
