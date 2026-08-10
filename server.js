@@ -1,208 +1,1052 @@
-const express = require('express');
-const cors = require('cors');
-const path = require('path');
+const express = require("express");
+const cors = require("cors");
+const path = require("path");
+const fs = require("fs");
+
 const app = express();
-const PORT = process.env.PORT || 3000;
+
+// ======================================================
+// RENDER
+// ======================================================
+
+const PORT = Number(process.env.PORT || 10000);
+const HOST = "0.0.0.0";
+
+const DATA_FILE = path.join(__dirname, "data.json");
+
+// ======================================================
+// CONFIG
+// ======================================================
+
+// ТВОЙ ОСНОВНОЙ TELEGRAM ID
+// Лучше задать через Render Environment:
+// ADMIN_OWNER_TG_ID
+const OWNER_TG_ID = String(
+    process.env.ADMIN_OWNER_TG_ID || ""
+);
+
+// Секрет Creator Panel.
+// Задай в Render Environment:
+// ADMIN_SECRET=какая-нибудь-длинная-строка
+const ADMIN_SECRET =
+    process.env.ADMIN_SECRET || "";
+
+// Античит:
+// 1-9 ms = мгновенный RED FLAG + бан
+const RED_FLAG_LIMIT_MS = 10;
+
+// Максимум обычных кликов за минуту
+const MAX_CLICKS_PER_MINUTE = 550;
+
+// Максимум запросов клика за секунду
+const MAX_CLICKS_PER_SECOND = 20;
+
+// Strike
+const STRIKE_MAX = 5;
+const STRIKE_TIMEOUT_MS = 1300;
+
+// Leaderboard
+const LEADERBOARD_PAGE_SIZE = 20;
+
+// ======================================================
+// EXPRESS
+// ======================================================
 
 app.use(cors());
-app.use(express.json());
-app.use(express.static(path.join(__dirname)));
 
-// СПИСОК АДМИНИСТРАТОРОВ (Сюда уже добавлен ваш второй аккаунт)
-// ВМЕСТО "ТВОЙ_ПЕРВЫЙ_ID" ВПИШИ ЦИФРЫ СВОЕГО ОСНОВНОГО АККАУНТА!
-const ADMIN_LIST = ["ТВОЙ_ПЕРВЫЙ_ID", "8860337975"]; 
+app.use(
+    express.json({
+        limit: "32kb"
+    })
+);
 
-function isMasterAdmin(tgId) {
-    return ADMIN_LIST.includes(String(tgId));
+// Игра находится в той же папке, что и server.js
+app.use(
+    express.static(__dirname)
+);
+
+// ======================================================
+// DATABASE
+// ======================================================
+
+function createEmptyDatabase() {
+    return {
+        players: {},
+        logs: [],
+        killSwitchActive: false
+    };
 }
 
-let db = {
-    players: {},
-    killSwitchActive: false,
-    logs: []
-};
-
-const BANNED_WORDS = ["badword", "scam", "admin", "moderator", "cheat", "hack", "fuck", "bitch", "shit"];
-
-function logAction(admin, action, target = "All") {
-    const timestamp = new Date().toISOString();
-    const logEntry = `[${timestamp}] MASTER_ADMIN: ${admin} | Action: ${action} | Target: ${target}`;
-    db.logs.push(logEntry);
-    console.log(logEntry);
-}
-
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
-});
-
-app.post('/api/auth', (req, res) => {
-    const { tgId, firstName, username } = req.body;
-    if (!tgId) return res.status(400).json({ error: "Telegram ID is required" });
-
-    const stringTgId = String(tgId);
-
-    if (db.killSwitchActive && !isMasterAdmin(stringTgId)) {
-        return res.status(503).json({ error: "SERVER_CLOSED", message: "Emergency Shutdown: Offline by the Creator." });
-    }
-
-    let rawName = username || firstName || "User_" + stringTgId.substring(0, 4);
-    let trimmedName = rawName.trim().replace(/[^a-zA-Z0-9_]/g, ""); 
-
-    const lowerInput = trimmedName.toLowerCase();
-    for (let bad of BANNED_WORDS) {
-        if (lowerInput.includes(bad)) {
-            trimmedName = "User_" + stringTgId.substring(0, 4);
-            break;
+function loadDatabase() {
+    try {
+        if (!fs.existsSync(DATA_FILE)) {
+            console.log("data.json not found. Creating new database.");
+            return createEmptyDatabase();
         }
-    }
 
-    let assignedRole = "player";
-    if (isMasterAdmin(stringTgId)) {
-        assignedRole = "creator";
-        trimmedName = "Creator"; 
-    } else {
-        if (lowerInput === "creator") {
-            trimmedName = "User_" + stringTgId.substring(0, 4);
-        }
-    }
+        const raw = fs.readFileSync(
+            DATA_FILE,
+            "utf8"
+        );
 
-    if (db.players[stringTgId] && db.players[stringTgId].isBanned) {
-        return res.status(403).json({ error: "ANTICHEAT_BANNED", message: "Your account has been permanently suspended by 3-Step Anticheat." });
-    }
+        const data = JSON.parse(raw);
 
-    if (!db.players[stringTgId]) {
-        db.players[stringTgId] = {
-            tgId: stringTgId,
-            username: trimmedName,
-            role: assignedRole,
-            chosenEmoji: "",
-            coins: 1000,
-            recordCoins: 1000,
-            level: 1,
-            xp: 0,
-            isBanned: false,
-            lastTapTime: 0,
-            intervalsHistory: [],
-            minuteClicksCount: 0,
-            minuteStartTime: Date.now()
+        return {
+            players: data.players || {},
+            logs: Array.isArray(data.logs)
+                ? data.logs
+                : [],
+            killSwitchActive:
+                Boolean(data.killSwitchActive)
         };
+
+    } catch (error) {
+
+        console.error(
+            "DATABASE LOAD ERROR:",
+            error.message
+        );
+
+        return createEmptyDatabase();
     }
+}
 
-    res.json({ player: db.players[stringTgId], killSwitch: db.killSwitchActive });
-});
+let db = loadDatabase();
 
-app.post('/api/click', (req, res) => {
-    const { tgId } = req.body;
-    const stringTgId = String(tgId);
-    
-    if (db.killSwitchActive && !isMasterAdmin(stringTgId)) {
-        return res.status(503).json({ error: "SERVER_CLOSED" });
-    }
+let saveTimer = null;
 
-    const player = db.players[stringTgId];
-    if (!player) return res.status(404).json({ error: "Player not found" });
-    if (player.isBanned) return res.status(403).json({ error: "ANTICHEAT_BANNED" });
+function saveDatabase() {
 
-    const now = Date.now();
-    const timeDiff = now - player.lastTapTime;
-    player.lastTapTime = now;
+    clearTimeout(saveTimer);
 
-    if (timeDiff > 0 && timeDiff < 45) {
-        player.isBanned = true;
-        logAction("ANTICHEAT_STAGE_1", "PERMANENT_BAN_SPEEDHACK", player.username);
-        return res.status(403).json({ error: "ANTICHEAT_STAGE_1" });
-    }
+    saveTimer = setTimeout(() => {
 
-    if (player.intervalsHistory.length >= 10) player.intervalsHistory.shift();
-    player.intervalsHistory.push(timeDiff);
-    if (player.intervalsHistory.length === 10) {
-        let isPerfectPattern = true;
-        const firstDiff = player.intervalsHistory[0];
-        for (let i = 1; i < player.intervalsHistory.length; i++) {
-            if (Math.abs(player.intervalsHistory[i] - firstDiff) > 4) { isPerfectPattern = false; break; }
+        try {
+
+            const temporaryFile =
+                DATA_FILE + ".tmp";
+
+            fs.writeFileSync(
+                temporaryFile,
+                JSON.stringify(
+                    db,
+                    null,
+                    2
+                ),
+                "utf8"
+            );
+
+            fs.renameSync(
+                temporaryFile,
+                DATA_FILE
+            );
+
+        } catch (error) {
+
+            console.error(
+                "DATABASE SAVE ERROR:",
+                error.message
+            );
         }
-        if (isPerfectPattern) {
-            player.isBanned = true;
-            logAction("ANTICHEAT_STAGE_2", "PERMANENT_BAN_MACRO", player.username);
-            return res.status(403).json({ error: "ANTICHEAT_STAGE_2" });
+
+    }, 100);
+}
+
+// ======================================================
+// LOGGING
+// ======================================================
+
+function addLog(
+    type,
+    action,
+    target = "ALL",
+    details = ""
+) {
+
+    const entry = {
+        time:
+            new Date().toISOString(),
+
+        type,
+        action,
+
+        target:
+            String(target),
+
+        details:
+            String(details)
+    };
+
+    db.logs.push(entry);
+
+    // Храним максимум 3000 логов
+    if (db.logs.length > 3000) {
+        db.logs.shift();
+    }
+
+    console.log(
+        `[${entry.time}]`,
+        `[${type}]`,
+        action,
+        target,
+        details
+    );
+
+    saveDatabase();
+}
+
+// ======================================================
+// ADMIN
+// ======================================================
+
+function isCreator(tgId) {
+
+    return (
+        OWNER_TG_ID !== "" &&
+        String(tgId) === OWNER_TG_ID
+    );
+}
+
+function checkAdmin(req, res) {
+
+    const secret =
+        req.headers["x-admin-secret"];
+
+    if (
+        !ADMIN_SECRET ||
+        !secret ||
+        secret !== ADMIN_SECRET
+    ) {
+
+        res.status(403).json({
+            error: "ACCESS_DENIED"
+        });
+
+        return false;
+    }
+
+    return true;
+}
+
+// ======================================================
+// NAME CENSOR
+// ======================================================
+
+const BANNED_WORDS = [
+
+    "fuck",
+    "fucker",
+    "fucking",
+
+    "shit",
+    "bitch",
+    "asshole",
+    "dick",
+    "pussy",
+
+    "porn",
+    "porno",
+
+    "sex",
+
+    "nigger",
+    "nigga",
+
+    "scam",
+    "cheat",
+    "hacker",
+    "hack",
+
+    "admin",
+    "moderator",
+    "creator",
+    "owner"
+];
+
+function cleanName(
+    input,
+    tgId
+) {
+
+    let name =
+        String(input || "")
+            .trim()
+            .slice(0, 24);
+
+    // Разрешаем:
+    // английские буквы
+    // цифры
+    // _
+    name =
+        name.replace(
+            /[^a-zA-Z0-9_]/g,
+            ""
+        );
+
+    if (!name) {
+        return `User_${String(tgId).slice(0, 6)}`;
+    }
+
+    const lower =
+        name.toLowerCase();
+
+    for (const word of BANNED_WORDS) {
+
+        if (
+            lower.includes(word)
+        ) {
+
+            return `User_${String(tgId).slice(0, 6)}`;
         }
     }
 
-    if (now - player.minuteStartTime >= 60000) {
-        player.minuteClicksCount = 0;
-        player.minuteStartTime = now;
-    }
-    player.minuteClicksCount++;
-    if (player.minuteClicksCount > 550) {
-        player.isBanned = true;
-        logAction("ANTICHEAT_STAGE_3", "PERMANENT_BAN_OVERLOAD", player.username);
-        return res.status(403).json({ error: "ANTICHEAT_STAGE_3" });
-    }
+    return name;
+}
 
-    let clickValue = 1 + Math.floor(player.level * 0.5);
-    player.coins += clickValue;
-    if (player.coins > player.recordCoins) player.recordCoins = player.coins;
+// ======================================================
+// PLAYER
+// ======================================================
 
-    player.xp += 1;
-    let xpNeeded = player.level <= 10 ? player.level * 100 : player.level <= 20 ? 1000 + (player.level - 10) * 1000 : 11000 + (player.level - 20) * 5000;
-    
-    if (player.xp >= xpNeeded) {
-        player.xp -= xpNeeded;
-        player.level++;
-    }
+function getPlayer(tgId) {
 
-    res.json({ player });
-});
+    return (
+        db.players[
+            String(tgId)
+        ] || null
+    );
+}
 
-app.post('/api/save', (req, res) => {
-    const { tgId, coins, recordCoins, chosenEmoji } = req.body;
-    const player = db.players[String(tgId)];
-    if (!player) return res.status(404).json({ error: "Player not found" });
-    
-    player.coins = coins;
-    player.recordCoins = recordCoins;
-    if (player.role === "creator") player.chosenEmoji = chosenEmoji;
-    
-    res.json({ player });
-});
+function xpRequired(level) {
 
-app.post('/api/admin/command', (req, res) => {
-    const { adminTgId, command, targetTgId } = req.body;
-    
-    if (!isMasterAdmin(adminTgId)) {
-        return res.status(403).json({ error: "ACCESS_DENIED" });
+    if (level <= 10) {
+        return level * 100;
     }
 
-    if (command === "BAN") {
-        if (db.players[String(targetTgId)]) {
-            db.players[String(targetTgId)].isBanned = true;
-            logAction(adminTgId, "MANUAL_BAN", targetTgId);
-            return res.json({ success: true, msg: `User ID ${targetTgId} banned.` });
+    if (level <= 20) {
+        return (
+            1000 +
+            (level - 10) * 1000
+        );
+    }
+
+    return (
+        11000 +
+        (level - 20) * 5000
+    );
+}
+
+function publicPlayer(player) {
+
+    if (!player) {
+        return null;
+    }
+
+    return {
+
+        tgId:
+            player.tgId,
+
+        username:
+            player.username,
+
+        role:
+            player.role,
+
+        chosenEmoji:
+            player.chosenEmoji,
+
+        coins:
+            player.coins,
+
+        recordCoins:
+            player.recordCoins,
+
+        level:
+            player.level,
+
+        xp:
+            player.xp,
+
+        xpNeeded:
+            xpRequired(
+                player.level
+            ),
+
+        totalClicks:
+            player.totalClicks,
+
+        registrationDate:
+            player.registrationDate,
+
+        isBanned:
+            player.isBanned,
+
+        strike:
+            player.strike,
+
+        anticheatFlags:
+            player.anticheatFlags
+    };
+}
+
+// ======================================================
+// HEALTH
+// ======================================================
+
+app.get(
+    "/api/health",
+    (req, res) => {
+
+        res.json({
+
+            ok: true,
+
+            server:
+                "crypto-clicker",
+
+            version:
+                "2.0-server",
+
+            players:
+                Object.keys(
+                    db.players
+                ).length,
+
+            killSwitch:
+                db.killSwitchActive,
+
+            uptime:
+                Math.floor(
+                    process.uptime()
+                )
+        });
+    }
+);
+
+// ======================================================
+// GAME
+// ======================================================
+
+app.get(
+    "/",
+    (req, res) => {
+
+        const indexFile =
+            path.join(
+                __dirname,
+                "index.html"
+            );
+
+        if (
+            fs.existsSync(indexFile)
+        ) {
+
+            return res.sendFile(
+                indexFile
+            );
         }
-    }
 
-    if (command === "UNBAN") {
-        if (db.players[String(targetTgId)]) {
-            db.players[String(targetTgId)].isBanned = false;
-            logAction(adminTgId, "MANUAL_UNBAN", targetTgId);
-            return res.json({ success: true, msg: `User ID ${targetTgId} restored.` });
+        res.send(
+            "Crypto Clicker Server is online."
+        );
+    }
+);
+
+// ======================================================
+// AUTH
+// ======================================================
+
+app.post(
+    "/api/auth",
+    (req, res) => {
+
+        const {
+            tgId,
+            firstName,
+            username
+        } = req.body || {};
+
+        if (!tgId) {
+
+            return res.status(400).json({
+                error:
+                    "TG_ID_REQUIRED"
+            });
         }
+
+        const id =
+            String(tgId);
+
+        // Kill switch
+        if (
+            db.killSwitchActive &&
+            !isCreator(id)
+        ) {
+
+            return res.status(503).json({
+
+                error:
+                    "SERVER_CLOSED",
+
+                message:
+                    "The game is temporarily closed for maintenance."
+            });
+        }
+
+        let player =
+            getPlayer(id);
+
+        // Уже забанен
+        if (
+            player &&
+            player.isBanned
+        ) {
+
+            return res.status(403).json({
+
+                error:
+                    "ANTICHEAT_BANNED",
+
+                message:
+                    "Your account is permanently banned."
+            });
+        }
+
+        // Новый игрок
+        if (!player) {
+
+            player = {
+
+                tgId:
+                    id,
+
+                username:
+                    isCreator(id)
+                        ? "Creator"
+                        : cleanName(
+                            username ||
+                            firstName ||
+                            "Player",
+                            id
+                        ),
+
+                role:
+                    isCreator(id)
+                        ? "creator"
+                        : "player",
+
+                chosenEmoji:
+                    "",
+
+                coins:
+                    1000,
+
+                recordCoins:
+                    1000,
+
+                level:
+                    1,
+
+                xp:
+                    0,
+
+                totalClicks:
+                    0,
+
+                registrationDate:
+                    new Date().toISOString(),
+
+                isBanned:
+                    false,
+
+                lastTapTime:
+                    0,
+
+                minuteStartTime:
+                    Date.now(),
+
+                minuteClicks:
+                    0,
+
+                secondStartTime:
+                    Date.now(),
+
+                secondClicks:
+                    0,
+
+                strike:
+                    0,
+
+                lastStrikeAt:
+                    0,
+
+                anticheatFlags:
+                    0
+            };
+
+            db.players[id] =
+                player;
+
+            addLog(
+                "SYSTEM",
+                "NEW_PLAYER",
+                id,
+                player.username
+            );
+
+        }
+
+        // Если ID создателя
+        if (
+            isCreator(id)
+        ) {
+
+            player.role =
+                "creator";
+
+            player.username =
+                "Creator";
+        }
+
+        saveDatabase();
+
+        res.json({
+
+            player:
+                publicPlayer(player),
+
+            killSwitch:
+                db.killSwitchActive
+        });
     }
+);
 
-    if (command === "KILL_SWITCH") {
-        db.killSwitchActive = !db.killSwitchActive;
-        logAction(adminTgId, `KILL_SWITCH_STATUS_${db.killSwitchActive}`);
-        return res.json({ success: true, killSwitch: db.killSwitchActive, msg: `Kill Switch state changed!` });
+// ======================================================
+// CLICK
+// ======================================================
+
+app.post(
+    "/api/click",
+    (req, res) => {
+
+        const {
+            tgId
+        } = req.body || {};
+
+        if (!tgId) {
+
+            return res.status(400).json({
+                error:
+                    "TG_ID_REQUIRED"
+            });
+        }
+
+        const player =
+            getPlayer(tgId);
+
+        if (!player) {
+
+            return res.status(404).json({
+                error:
+                    "PLAYER_NOT_FOUND"
+            });
+        }
+
+        if (
+            player.isBanned
+        ) {
+
+            return res.status(403).json({
+                error:
+                    "ANTICHEAT_BANNED"
+            });
+        }
+
+        const now =
+            Date.now();
+
+        const interval =
+            player.lastTapTime
+                ? now -
+                  player.lastTapTime
+                : null;
+
+        // ==================================================
+        // 🔴 RED FLAG: 1-9ms
+        // ==================================================
+
+        if (
+            interval !== null &&
+            interval > 0 &&
+            interval < RED_FLAG_LIMIT_MS
+        ) {
+
+            player.isBanned =
+                true;
+
+            player.anticheatFlags++;
+
+            addLog(
+                "RED_FLAG",
+                "PERMANENT_BAN_1_9MS",
+                player.tgId,
+                `interval=${interval}ms`
+            );
+
+            saveDatabase();
+
+            return res.status(403).json({
+
+                error:
+                    "ANTICHEAT_RED_FLAG",
+
+                reason:
+                    `Impossible click interval: ${interval}ms`
+            });
+        }
+
+        // ==================================================
+        // 🔴 0ms
+        // ==================================================
+
+        if (
+            interval === 0
+        ) {
+
+            player.isBanned =
+                true;
+
+            player.anticheatFlags++;
+
+            addLog(
+                "RED_FLAG",
+                "PERMANENT_BAN_ZERO_INTERVAL",
+                player.tgId,
+                "interval=0ms"
+            );
+
+            saveDatabase();
+
+            return res.status(403).json({
+
+                error:
+                    "ANTICHEAT_RED_FLAG"
+            });
+        }
+
+        // ==================================================
+        // PER SECOND LIMIT
+        // ==================================================
+
+        if (
+            now -
+            player.secondStartTime
+            >= 1000
+        ) {
+
+            player.secondStartTime =
+                now;
+
+            player.secondClicks =
+                0;
+        }
+
+        player.secondClicks++;
+
+        if (
+            player.secondClicks >
+            MAX_CLICKS_PER_SECOND
+        ) {
+
+            player.isBanned =
+                true;
+
+            player.anticheatFlags++;
+
+            addLog(
+                "RED_FLAG",
+                "PERMANENT_BAN_20_PLUS_PER_SECOND",
+                player.tgId,
+                `clicks=${player.secondClicks}`
+            );
+
+            saveDatabase();
+
+            return res.status(403).json({
+
+                error:
+                    "ANTICHEAT_RED_FLAG"
+            });
+        }
+
+        // ==================================================
+        // PER MINUTE LIMIT
+        // ==================================================
+
+        if (
+            now -
+            player.minuteStartTime
+            >= 60000
+        ) {
+
+            player.minuteStartTime =
+                now;
+
+            player.minuteClicks =
+                0;
+        }
+
+        player.minuteClicks++;
+
+        if (
+            player.minuteClicks >
+            MAX_CLICKS_PER_MINUTE
+        ) {
+
+            player.isBanned =
+                true;
+
+            player.anticheatFlags++;
+
+            addLog(
+                "ANTICHEAT",
+                "PERMANENT_BAN_550_PER_MINUTE",
+                player.tgId,
+                `clicks=${player.minuteClicks}`
+            );
+
+            saveDatabase();
+
+            return res.status(403).json({
+
+                error:
+                    "ANTICHEAT_STAGE_3"
+            });
+        }
+
+        // ==================================================
+        // STRIKE
+        // ==================================================
+
+        if (
+            player.lastStrikeAt &&
+            now -
+            player.lastStrikeAt
+            <= STRIKE_TIMEOUT_MS
+        ) {
+
+            player.strike =
+                Math.min(
+                    STRIKE_MAX,
+                    player.strike + 1
+                );
+
+        } else {
+
+            player.strike =
+                1;
+        }
+
+        player.lastStrikeAt =
+            now;
+
+        // ==================================================
+        // SERVER CLICK
+        // ==================================================
+
+        player.lastTapTime =
+            now;
+
+        player.totalClicks++;
+
+        // ==================================================
+        // COINS
+        // ==================================================
+
+        const baseReward =
+            Math.max(
+                1,
+                1 +
+                Math.floor(
+                    player.level * 0.5
+                )
+            );
+
+        const multiplier =
+            Math.max(
+                1,
+                Math.min(
+                    STRIKE_MAX,
+                    player.strike
+                )
+            );
+
+        const reward =
+            baseReward *
+            multiplier;
+
+        player.coins +=
+            reward;
+
+        if (
+            player.coins >
+            player.recordCoins
+        ) {
+
+            player.recordCoins =
+                player.coins;
+        }
+
+        // ==================================================
+        // XP
+        // ==================================================
+
+        player.xp++;
+
+        let levelUp =
+            false;
+
+        while (
+            player.xp >=
+            xpRequired(
+                player.level
+            )
+        ) {
+
+            player.xp -=
+                xpRequired(
+                    player.level
+                );
+
+            player.level++;
+
+            levelUp =
+                true;
+        }
+
+        saveDatabase();
+
+        res.json({
+
+            success:
+                true,
+
+            reward,
+
+            baseReward,
+
+            multiplier,
+
+            levelUp,
+
+            player:
+                publicPlayer(player)
+        });
     }
+);
 
-    if (command === "RESET_ECONOMY") {
-        Object.keys(db.players).forEach(id => { db.players[id].coins = 0; });
-        logAction(adminTgId, "CORE_ECONOMY_RESET_WIPE");
-        return res.json({ success: true, msg: "All balances set to 0." });
+// ======================================================
+// PROFILE
+// ======================================================
+
+app.post(
+    "/api/profile",
+    (req, res) => {
+
+        const {
+            tgId,
+            username,
+            chosenEmoji
+        } = req.body || {};
+
+        const player =
+            getPlayer(tgId);
+
+        if (!player) {
+
+            return res.status(404).json({
+                error:
+                    "PLAYER_NOT_FOUND"
+            });
+        }
+
+        if (
+            player.isBanned
+        ) {
+
+            return res.status(403).json({
+                error:
+                    "ANTICHEAT_BANNED"
+            });
+        }
+
+        if (
+            username !== undefined
+        ) {
+
+            const cleaned =
+                cleanName(
+                    username,
+                    player.tgId
+                );
+
+            // Если имя прошло цензуру
+            // и не было изменено
+            if (
+                cleaned !==
+                String(username)
+                    .trim()
+                    .slice(0, 24)
+                    .replace(
+                        /[^a-zA-Z0-9_]/g,
+                        ""
+                    )
+            ) {
+
+                return res.status(400).json({
+                    error:
+                        "NAME_REJECTED"
+                });
+            }
+
+            player.username =
+                player.role === "creator"
+                    ? "Creator"
+                    : cleaned;
+        }
+
+        if (
+            chosenEmoji !== undefined
+        ) {
+
+            player.chosenEmoji =
+                String(
+                    chosenEmoji
+                ).slice(0, 8);
+        }
+
+        saveDatabase();
+
+        res.json({
+
+            success:
+                true,
+
+            player:
+                publicPlayer(player)
+        });
     }
+);
 
-    res.status(400).json({ error: "Unknown Command" });
-});
+// ======================================================
+// SAVE
+// ======================================================
+//
+// ВАЖНО:
+// Клиент НЕ может менять Coins / XP / Level.
+// Сервер сам их хранит.
+//
+// ======================================================
 
-app.listen(PORT, () => console.log(`Master Server deployed on port ${PORT}`));
-        
+app.post(
+    "/a
