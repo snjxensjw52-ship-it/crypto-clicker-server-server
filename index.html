@@ -1,1051 +1,1210 @@
-const express = require('express');
-const cors = require('cors');
-const path = require('path');
-const fs = require('fs');
-const crypto = require('crypto');
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport"
+      content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 
-const app = express();
-const PORT = Number(process.env.PORT || 3000);
-const HOST = process.env.HOST || '0.0.0.0';
-const DATA_FILE = path.join(__dirname, 'data.json');
+<meta name="theme-color" content="#09070f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
 
-app.use(cors());
-app.use(express.json({ limit: '32kb' }));
-app.use(express.static(__dirname));
+<title>VEX — Crypto Clicker</title>
 
-// ============================================================
-// CONFIG
-// ============================================================
+<style>
+:root{
+    --bg:#07060b;
+    --bg2:#0e0b16;
+    --panel:#12101a;
+    --panel2:#181421;
+    --panel3:#201a2c;
+    --line:rgba(255,255,255,.08);
+    --text:#fff;
+    --muted:#9d98aa;
+    --purple:#9b4dff;
+    --purple2:#c06cff;
+    --cyan:#56e7ff;
+    --green:#50e890;
+    --red:#ff4d68;
+    --gold:#ffd45a;
+    --shadow:0 15px 45px rgba(0,0,0,.4);
+    --radius:18px;
+}
 
-const ADMIN_SECRET =
-    process.env.ADMIN_SECRET || 'CHANGE_THIS_ADMIN_SECRET';
+*{
+    box-sizing:border-box;
+    -webkit-tap-highlight-color:transparent;
+}
 
-const OWNER_TG_ID =
-    String(process.env.ADMIN_OWNER_TG_ID || '');
+html,body{
+    margin:0;
+    min-height:100%;
+    background:
+        radial-gradient(circle at 50% -10%,rgba(140,50,255,.18),transparent 40%),
+        var(--bg);
+    color:var(--text);
+    font-family:
+        Inter,
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+}
 
-// 1–9 ms = RED FLAG + permanent ban
-const RED_FLAG_MS = 10;
+body{
+    overflow-x:hidden;
+    padding-bottom:
+        calc(86px + env(safe-area-inset-bottom));
+}
 
-const MAX_CLICKS_PER_MINUTE = 550;
-const MAX_REQUESTS_PER_SECOND = 20;
+button,
+input{
+    font:inherit;
+}
 
-const STRIKE_RESET_MS = 1300;
-const MAX_STRIKE = 5;
+button{
+    border:0;
+    cursor:pointer;
+    color:white;
+}
 
-const LEADERBOARD_PAGE_SIZE = 20;
+button:disabled{
+    opacity:.45;
+    cursor:not-allowed;
+}
 
-const BANNED_WORDS = [
-    'badword',
-    'scam',
-    'admin',
-    'moderator',
-    'cheat',
-    'hack',
-    'fuck',
-    'fucker',
-    'fucking',
-    'bitch',
-    'shit',
-    'asshole',
-    'dick',
-    'pussy',
-    'porn',
-    'sex',
-    'nigger',
-    'nigga'
-];
+.hidden{
+    display:none!important;
+}
 
-// ============================================================
-// DATABASE
-// ============================================================
+.app{
+    width:min(1100px,100%);
+    margin:auto;
+    padding:
+        max(12px,env(safe-area-inset-top))
+        14px
+        30px;
+}
 
-function loadDb() {
-    try {
-        if (!fs.existsSync(DATA_FILE)) {
-            return {
-                players: {},
-                logs: [],
-                killSwitchActive: false
-            };
-        }
+/* HEADER */
 
-        const parsed = JSON.parse(
-            fs.readFileSync(DATA_FILE, 'utf8')
-        );
+.header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    padding:10px 0 16px;
+}
 
-        return {
-            players: parsed.players || {},
-            logs: Array.isArray(parsed.logs)
-                ? parsed.logs.slice(-2000)
-                : [],
-            killSwitchActive: Boolean(
-                parsed.killSwitchActive
-            )
-        };
+.brand{
+    display:flex;
+    align-items:center;
+    gap:10px;
+}
 
-    } catch (err) {
-        console.error(
-            'Database load failed:',
-            err.message
-        );
+.logo{
+    width:44px;
+    height:44px;
+    display:grid;
+    place-items:center;
+    border-radius:14px;
+    background:
+        linear-gradient(135deg,#8d39ff,#d76cff);
+    box-shadow:
+        0 0 25px rgba(156,68,255,.45);
+    font-weight:1000;
+    font-size:18px;
+}
 
-        return {
-            players: {},
-            logs: [],
-            killSwitchActive: false
-        };
+.brand-text{
+    line-height:1.05;
+}
+
+.brand-text strong{
+    display:block;
+    font-size:18px;
+}
+
+.brand-text span{
+    color:var(--muted);
+    font-size:11px;
+}
+
+.header-actions{
+    display:flex;
+    gap:8px;
+}
+
+.icon-btn{
+    width:44px;
+    height:44px;
+    border-radius:14px;
+    background:var(--panel);
+    border:1px solid var(--line);
+}
+
+/* USER BAR */
+
+.userbar{
+    display:grid;
+    grid-template-columns:1fr auto;
+    gap:12px;
+    align-items:center;
+    background:
+        linear-gradient(135deg,
+            rgba(155,77,255,.16),
+            rgba(255,255,255,.025));
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:14px;
+    box-shadow:var(--shadow);
+}
+
+.user-main{
+    min-width:0;
+}
+
+.user-name{
+    font-size:16px;
+    font-weight:900;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+}
+
+.user-role{
+    color:var(--purple2);
+    font-size:12px;
+    font-weight:800;
+    margin-top:3px;
+}
+
+.user-level{
+    text-align:right;
+}
+
+.level-number{
+    font-size:22px;
+    font-weight:1000;
+}
+
+.level-label{
+    color:var(--muted);
+    font-size:10px;
+}
+
+.xp-bar{
+    margin-top:8px;
+    height:5px;
+    background:#27212f;
+    border-radius:10px;
+    overflow:hidden;
+}
+
+.xp-fill{
+    height:100%;
+    width:0;
+    background:
+        linear-gradient(90deg,var(--purple),var(--cyan));
+    transition:.25s;
+}
+
+/* BALANCE */
+
+.balance-card{
+    margin-top:12px;
+    background:
+        radial-gradient(circle at 50% 0%,rgba(155,77,255,.16),transparent 55%),
+        var(--panel);
+    border:1px solid var(--line);
+    border-radius:24px;
+    padding:20px;
+    text-align:center;
+    box-shadow:var(--shadow);
+}
+
+.balance-label{
+    color:var(--muted);
+    font-size:12px;
+    text-transform:uppercase;
+    letter-spacing:1.5px;
+}
+
+.balance{
+    margin-top:3px;
+    font-size:clamp(35px,9vw,65px);
+    font-weight:1000;
+    letter-spacing:-2px;
+    word-break:break-word;
+}
+
+.coin-symbol{
+    color:var(--gold);
+}
+
+.stats-row{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:8px;
+    margin-top:14px;
+}
+
+.stat{
+    background:rgba(255,255,255,.035);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:10px 5px;
+}
+
+.stat-value{
+    font-weight:900;
+    font-size:15px;
+}
+
+.stat-label{
+    margin-top:3px;
+    color:var(--muted);
+    font-size:9px;
+}
+
+/* CLICK AREA */
+
+.click-section{
+    margin-top:16px;
+    display:grid;
+    place-items:center;
+}
+
+.click-zone{
+    width:min(78vw,380px);
+    aspect-ratio:1;
+    position:relative;
+    display:grid;
+    place-items:center;
+}
+
+.click-ring{
+    position:absolute;
+    inset:0;
+    border-radius:50%;
+    background:
+        radial-gradient(circle,
+            rgba(165,74,255,.3) 0%,
+            rgba(155,77,255,.12) 50%,
+            transparent 70%);
+    filter:blur(2px);
+}
+
+.click-button{
+    position:relative;
+    width:74%;
+    height:74%;
+    border-radius:50%;
+    background:
+        radial-gradient(circle at 35% 25%,
+            #e59bff,
+            #a94dff 35%,
+            #6720b5 75%,
+            #361069);
+    box-shadow:
+        0 0 0 8px rgba(155,77,255,.08),
+        0 0 60px rgba(155,77,255,.35),
+        inset 0 -18px 30px rgba(0,0,0,.25),
+        inset 0 10px 25px rgba(255,255,255,.2);
+    user-select:none;
+    touch-action:manipulation;
+    transition:transform .05s;
+}
+
+.click-button:active{
+    transform:scale(.94);
+}
+
+.click-vex{
+    font-size:clamp(42px,13vw,72px);
+    font-weight:1000;
+    letter-spacing:-3px;
+}
+
+.click-sub{
+    margin-top:-8px;
+    color:rgba(255,255,255,.75);
+    font-size:12px;
+}
+
+.float-number{
+    position:absolute;
+    left:50%;
+    top:40%;
+    transform:translate(-50%,-50%);
+    pointer-events:none;
+    font-weight:1000;
+    color:white;
+    text-shadow:0 0 15px #a84cff;
+    animation:floatUp .75s ease-out forwards;
+    z-index:20;
+}
+
+@keyframes floatUp{
+    0%{
+        opacity:1;
+        transform:translate(-50%,-50%) scale(1);
+    }
+    100%{
+        opacity:0;
+        transform:translate(-50%,-150%) scale(1.25);
     }
 }
 
-let db = loadDb();
-let saveTimer = null;
+/* STREAK */
 
-function persistDb() {
-    clearTimeout(saveTimer);
-
-    saveTimer = setTimeout(() => {
-
-        const tmp = `${DATA_FILE}.tmp`;
-
-        try {
-            fs.writeFileSync(
-                tmp,
-                JSON.stringify(db, null, 2),
-                'utf8'
-            );
-
-            fs.renameSync(tmp, DATA_FILE);
-
-        } catch (err) {
-            console.error(
-                'Database save failed:',
-                err.message
-            );
-        }
-
-    }, 100);
+.streak{
+    margin-top:15px;
+    width:min(500px,100%);
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:18px;
+    padding:12px;
 }
 
-// ============================================================
-// HELPERS
-// ============================================================
-
-function cleanName(input, tgId) {
-
-    let name = String(input || '')
-        .trim()
-        .slice(0, 24);
-
-    name = name.replace(
-        /[^a-zA-Z0-9_]/g,
-        ''
-    );
-
-    const lower = name.toLowerCase();
-
-    if (
-        !name ||
-        BANNED_WORDS.some(
-            word => lower.includes(word)
-        )
-    ) {
-        return `User_${String(tgId).slice(0, 6)}`;
-    }
-
-    if (
-        lower === 'creator' ||
-        lower === 'owner' ||
-        lower === 'admin'
-    ) {
-        return `User_${String(tgId).slice(0, 6)}`;
-    }
-
-    return name;
+.streak-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:9px;
 }
 
-function isCreator(tgId) {
-    return (
-        OWNER_TG_ID &&
-        String(tgId) === OWNER_TG_ID
-    );
+.streak-title{
+    font-weight:900;
+    font-size:13px;
 }
 
-function logAction(
-    type,
-    action,
-    target = 'All',
-    extra = ''
-) {
-
-    const line = {
-        time: new Date().toISOString(),
-        type,
-        action,
-        target: String(target),
-        extra: String(extra || '')
-    };
-
-    db.logs.push(line);
-
-    if (db.logs.length > 2000) {
-        db.logs.shift();
-    }
-
-    console.log(
-        `[${line.time}] ${type} ${action} ${line.target} ${line.extra}`
-    );
-
-    persistDb();
+.streak-count{
+    color:var(--gold);
+    font-weight:1000;
 }
 
-function getPlayer(tgId) {
-    return db.players[String(tgId)] || null;
+.streak-line{
+    position:relative;
+    height:6px;
+    background:#282130;
+    border-radius:10px;
+    overflow:hidden;
 }
 
-function xpNeeded(level) {
-
-    if (level <= 10) {
-        return level * 100;
-    }
-
-    if (level <= 20) {
-        return 1000 +
-            (level - 10) * 1000;
-    }
-
-    return 11000 +
-        (level - 20) * 5000;
+.streak-progress{
+    height:100%;
+    width:0;
+    background:
+        linear-gradient(90deg,var(--purple),var(--gold));
+    transition:.2s;
 }
 
-function publicPlayer(player) {
-
-    if (!player) {
-        return null;
-    }
-
-    return {
-        tgId: player.tgId,
-        username: player.username,
-        role: player.role,
-        chosenEmoji: player.chosenEmoji,
-
-        coins: player.coins,
-        recordCoins: player.recordCoins,
-
-        level: player.level,
-        xp: player.xp,
-        xpNeeded: xpNeeded(player.level),
-
-        totalClicks: player.totalClicks,
-
-        registrationDate:
-            player.registrationDate,
-
-        isBanned: player.isBanned,
-
-        strike: player.strike,
-        lastStrikeAt:
-            player.lastStrikeAt
-    };
+.streak-dots{
+    display:flex;
+    justify-content:space-between;
+    margin-top:8px;
 }
 
-function adminAuth(req, res) {
-
-    const supplied =
-        req.get('x-admin-secret');
-
-    if (
-        !supplied ||
-        supplied !== ADMIN_SECRET ||
-        ADMIN_SECRET ===
-            'CHANGE_THIS_ADMIN_SECRET'
-    ) {
-
-        res.status(403).json({
-            error: 'ACCESS_DENIED'
-        });
-
-        return false;
-    }
-
-    return true;
+.streak-dot{
+    width:8px;
+    height:8px;
+    border-radius:50%;
+    background:#393140;
 }
 
-function requirePlayer(req, res) {
-
-    const tgId =
-        req.body &&
-        req.body.tgId;
-
-    if (!tgId) {
-
-        res.status(400).json({
-            error:
-                'Telegram ID is required'
-        });
-
-        return null;
-    }
-
-    const player =
-        getPlayer(tgId);
-
-    if (!player) {
-
-        res.status(404).json({
-            error:
-                'PLAYER_NOT_FOUND'
-        });
-
-        return null;
-    }
-
-    if (player.isBanned) {
-
-        res.status(403).json({
-            error:
-                'ANTICHEAT_BANNED'
-        });
-
-        return null;
-    }
-
-    return player;
+.streak-dot.active{
+    background:var(--gold);
+    box-shadow:0 0 10px rgba(255,212,90,.5);
 }
 
-// ============================================================
-// HEALTH
-// ============================================================
+/* PAGES */
 
-app.get('/api/health', (req, res) => {
+.page{
+    display:none;
+    animation:pageIn .2s ease;
+}
 
-    res.json({
+.page.active{
+    display:block;
+}
 
-        ok: true,
+@keyframes pageIn{
+    from{
+        opacity:0;
+        transform:translateY(5px);
+    }
+    to{
+        opacity:1;
+        transform:none;
+    }
+}
 
-        players:
-            Object.keys(db.players).length,
+.section-title{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin:20px 0 10px;
+}
 
-        killSwitch:
-            db.killSwitchActive,
+.section-title h2{
+    margin:0;
+    font-size:20px;
+}
 
-        uptime:
-            Math.floor(
-                process.uptime()
-            )
-    });
-});
+.section-title span{
+    color:var(--muted);
+    font-size:11px;
+}
 
-// ============================================================
-// ROOT
-// ============================================================
+/* CARDS */
 
-app.get('/', (req, res) => {
+.grid{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:10px;
+}
 
-    res.sendFile(
-        path.join(
-            __dirname,
-            'index.html'
-        )
-    );
-});
+.card{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:18px;
+    padding:14px;
+}
 
-// ============================================================
-// AUTH
-// ============================================================
+.card h3{
+    margin:0;
+    font-size:15px;
+}
 
-app.post('/api/auth', (req, res) => {
+.card p{
+    margin:6px 0 0;
+    color:var(--muted);
+    font-size:11px;
+    line-height:1.4;
+}
 
-    const {
-        tgId,
-        firstName,
-        username
-    } = req.body || {};
+/* BUTTONS */
 
-    if (!tgId) {
+.primary{
+    width:100%;
+    min-height:44px;
+    margin-top:12px;
+    border-radius:13px;
+    background:
+        linear-gradient(135deg,var(--purple),#7025c5);
+    font-weight:900;
+}
 
-        return res.status(400).json({
-            error:
-                'Telegram ID is required'
-        });
+.secondary{
+    width:100%;
+    min-height:42px;
+    margin-top:9px;
+    border-radius:12px;
+    background:#211b2b;
+    border:1px solid var(--line);
+    font-weight:800;
+}
+
+.danger{
+    background:rgba(255,77,104,.12);
+    color:#ff8194;
+    border:1px solid rgba(255,77,104,.2);
+}
+
+/* SHOP */
+
+.shop-card{
+    display:flex;
+    gap:12px;
+    align-items:center;
+}
+
+.shop-icon{
+    width:50px;
+    height:50px;
+    display:grid;
+    place-items:center;
+    flex:none;
+    border-radius:15px;
+    background:#211a2c;
+    font-size:23px;
+}
+
+.shop-info{
+    flex:1;
+    min-width:0;
+}
+
+.shop-name{
+    font-weight:900;
+    font-size:13px;
+}
+
+.shop-meta{
+    color:var(--muted);
+    font-size:10px;
+    margin-top:3px;
+}
+
+.buy-btn{
+    min-width:76px;
+    min-height:40px;
+    padding:0 10px;
+    border-radius:11px;
+    background:#7d35d7;
+    font-size:11px;
+    font-weight:900;
+}
+
+.buy-btn small{
+    display:block;
+    color:#e6d5ff;
+}
+
+/* ACHIEVEMENTS */
+
+.medal{
+    position:relative;
+    overflow:hidden;
+}
+
+.medal.unlocked{
+    border-color:rgba(255,212,90,.35);
+    background:
+        radial-gradient(circle at top right,
+            rgba(255,212,90,.12),
+            transparent 60%),
+        var(--panel);
+}
+
+.medal-icon{
+    font-size:28px;
+}
+
+.medal-name{
+    font-weight:900;
+    margin-top:7px;
+    font-size:13px;
+}
+
+.medal-desc{
+    color:var(--muted);
+    font-size:10px;
+    margin-top:4px;
+}
+
+.lock{
+    position:absolute;
+    top:10px;
+    right:10px;
+    opacity:.55;
+}
+
+/* PROFILE */
+
+.profile-hero{
+    text-align:center;
+    background:
+        radial-gradient(circle at 50% 0%,rgba(155,77,255,.2),transparent 60%),
+        var(--panel);
+    border:1px solid var(--line);
+    border-radius:24px;
+    padding:25px 15px;
+}
+
+.avatar{
+    width:80px;
+    height:80px;
+    margin:auto;
+    display:grid;
+    place-items:center;
+    border-radius:50%;
+    background:
+        linear-gradient(135deg,#7424cc,#cf6cff);
+    font-size:30px;
+    font-weight:1000;
+    box-shadow:0 0 35px rgba(155,77,255,.35);
+}
+
+.profile-name{
+    margin-top:12px;
+    font-size:22px;
+    font-weight:1000;
+}
+
+.title-badge{
+    display:inline-flex;
+    margin-top:7px;
+    padding:5px 10px;
+    border-radius:99px;
+    background:rgba(155,77,255,.13);
+    color:#d8b3ff;
+    border:1px solid rgba(155,77,255,.25);
+    font-size:11px;
+    font-weight:900;
+}
+
+.profile-medals{
+    display:flex;
+    justify-content:center;
+    flex-wrap:wrap;
+    gap:5px;
+    margin-top:12px;
+}
+
+/* RANKING */
+
+.rank-row{
+    display:grid;
+    grid-template-columns:38px 1fr auto;
+    align-items:center;
+    gap:9px;
+    padding:12px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:15px;
+    margin-bottom:7px;
+}
+
+.rank-number{
+    width:32px;
+    height:32px;
+    display:grid;
+    place-items:center;
+    border-radius:10px;
+    background:#211b2b;
+    font-weight:1000;
+}
+
+.rank-user{
+    min-width:0;
+}
+
+.rank-name{
+    font-weight:900;
+    font-size:13px;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+}
+
+.rank-sub{
+    color:var(--muted);
+    font-size:10px;
+    margin-top:2px;
+}
+
+.rank-score{
+    text-align:right;
+    font-weight:1000;
+    font-size:12px;
+}
+
+/* VEX EVENT */
+
+.event-hero{
+    background:
+        radial-gradient(circle at 50% 0%,
+            rgba(86,231,255,.16),
+            transparent 55%),
+        var(--panel);
+    border:1px solid rgba(86,231,255,.12);
+    border-radius:24px;
+    padding:22px 16px;
+    text-align:center;
+}
+
+.vex-big{
+    font-size:50px;
+    font-weight:1000;
+    color:var(--cyan);
+    text-shadow:0 0 30px rgba(86,231,255,.3);
+}
+
+.timer{
+    margin-top:6px;
+    font-size:24px;
+    font-weight:1000;
+}
+
+/* CASINO */
+
+.casino{
+    background:
+        radial-gradient(circle at 50% 20%,
+            rgba(255,70,130,.15),
+            transparent 45%),
+        linear-gradient(180deg,#17101e,#0d0a12);
+    border:1px solid rgba(255,255,255,.08);
+    border-radius:26px;
+    padding:18px;
+}
+
+.casino-machine{
+    padding:15px;
+    border-radius:20px;
+    background:#09070c;
+    border:1px solid rgba(255,255,255,.08);
+}
+
+.slots{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:8px;
+}
+
+.slot{
+    min-height:90px;
+    display:grid;
+    place-items:center;
+    border-radius:15px;
+    background:
+        linear-gradient(180deg,#29202e,#17121c);
+    border:1px solid rgba(255,255,255,.08);
+    font-size:38px;
+    box-shadow:inset 0 -10px 20px rgba(0,0,0,.25);
+}
+
+.slot.spin{
+    animation:slotSpin .45s linear infinite;
+}
+
+@keyframes slotSpin{
+    0%{transform:translateY(-3px)}
+    50%{transform:translateY(3px)}
+    100%{transform:translateY(-3px)}
+}
+
+.bet-row{
+    display:grid;
+    grid-template-columns:1fr 1fr 1fr;
+    gap:7px;
+    margin-top:10px;
+}
+
+.bet-btn{
+    min-height:40px;
+    border-radius:11px;
+    background:#211a2a;
+    border:1px solid var(--line);
+    font-weight:900;
+}
+
+.bet-input{
+    width:100%;
+    min-height:42px;
+    padding:0 12px;
+    border-radius:11px;
+    background:#18121f;
+    color:white;
+    border:1px solid var(--line);
+    outline:none;
+}
+
+.win-message{
+    min-height:24px;
+    text-align:center;
+    margin-top:10px;
+    font-weight:900;
+}
+
+/* SETTINGS */
+
+.setting{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    padding:14px 0;
+    border-bottom:1px solid var(--line);
+}
+
+.setting:last-child{
+    border-bottom:0;
+}
+
+.setting-title{
+    font-weight:900;
+    font-size:13px;
+}
+
+.setting-desc{
+    color:var(--muted);
+    font-size:10px;
+    margin-top:3px;
+}
+
+.switch{
+    width:48px;
+    height:28px;
+    border-radius:99px;
+    background:#2c2635;
+    padding:3px;
+    flex:none;
+}
+
+.switch span{
+    display:block;
+    width:22px;
+    height:22px;
+    border-radius:50%;
+    background:#aaa;
+    transition:.2s;
+}
+
+.switch.on{
+    background:#7d35d7;
+}
+
+.switch.on span{
+    transform:translateX(20px);
+    background:white;
+}
+
+/* NAV */
+
+.nav{
+    position:fixed;
+    z-index:100;
+    left:0;
+    right:0;
+    bottom:0;
+    padding:
+        7px
+        8px
+        calc(7px + env(safe-area-inset-bottom));
+    background:rgba(8,6,12,.92);
+    backdrop-filter:blur(18px);
+    border-top:1px solid var(--line);
+}
+
+.nav-inner{
+    width:min(700px,100%);
+    margin:auto;
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:5px;
+}
+
+.nav-btn{
+    min-height:55px;
+    border-radius:13px;
+    background:transparent;
+    color:#8d8798;
+    font-size:9px;
+    font-weight:800;
+}
+
+.nav-icon{
+    display:block;
+    font-size:19px;
+    margin-bottom:3px;
+}
+
+.nav-btn.active{
+    color:white;
+    background:rgba(155,77,255,.13);
+}
+
+/* MODAL */
+
+.overlay{
+    position:fixed;
+    z-index:1000;
+    inset:0;
+    display:grid;
+    place-items:center;
+    padding:16px;
+    background:rgba(0,0,0,.75);
+    backdrop-filter:blur(8px);
+}
+
+.modal{
+    width:min(520px,100%);
+    max-height:90vh;
+    overflow:auto;
+    background:#120f18;
+    border:1px solid var(--line);
+    border-radius:23px;
+    padding:20px;
+    box-shadow:0 25px 80px rgba(0,0,0,.6);
+}
+
+.modal h2{
+    margin:0;
+    font-size:21px;
+}
+
+.modal p{
+    color:#b7b1c2;
+    font-size:12px;
+    line-height:1.55;
+}
+
+.modal-links{
+    display:grid;
+    gap:7px;
+    margin-top:12px;
+}
+
+.modal-link{
+    padding:11px;
+    border-radius:12px;
+    background:#1b1623;
+    color:#d3b5ff;
+    text-decoration:none;
+    font-size:12px;
+}
+
+.modal-actions{
+    display:flex;
+    gap:8px;
+    margin-top:15px;
+}
+
+.modal-actions button{
+    flex:1;
+}
+
+/* TOAST */
+
+.toast-container{
+    position:fixed;
+    z-index:2000;
+    top:
+        calc(10px + env(safe-area-inset-top));
+    left:12px;
+    right:12px;
+    display:grid;
+    justify-items:center;
+    gap:7px;
+    pointer-events:none;
+}
+
+.toast{
+    width:min(430px,100%);
+    padding:12px 14px;
+    border-radius:14px;
+    background:#19141f;
+    border:1px solid var(--line);
+    box-shadow:var(--shadow);
+    font-size:12px;
+    font-weight:800;
+    animation:toastIn .2s ease;
+}
+
+.toast.success{
+    border-color:rgba(80,232,144,.25);
+}
+
+.toast.error{
+    border-color:rgba(255,77,104,.3);
+}
+
+@keyframes toastIn{
+    from{
+        opacity:0;
+        transform:translateY(-8px);
+    }
+    to{
+        opacity:1;
+        transform:none;
+    }
+}
+
+/* LOADING */
+
+.loading{
+    position:fixed;
+    inset:0;
+    z-index:3000;
+    display:grid;
+    place-items:center;
+    background:#07060b;
+}
+
+.loader{
+    text-align:center;
+}
+
+.loader-logo{
+    font-size:55px;
+    font-weight:1000;
+    color:#b45cff;
+    text-shadow:0 0 35px rgba(180,92,255,.45);
+}
+
+.loader-text{
+    margin-top:8px;
+    color:var(--muted);
+    font-size:11px;
+}
+
+/* DESKTOP */
+
+@media (min-width:800px){
+
+    .app{
+        padding-left:25px;
+        padding-right:25px;
     }
 
-    const id = String(tgId);
-
-    if (
-        db.killSwitchActive &&
-        !isCreator(id)
-    ) {
-
-        return res.status(503).json({
-
-            error:
-                'SERVER_CLOSED',
-
-            message:
-                'The game is temporarily offline for maintenance.'
-        });
+    .home-layout{
+        display:grid;
+        grid-template-columns:minmax(0,1fr) 340px;
+        gap:16px;
+        align-items:start;
     }
 
-    let player =
-        getPlayer(id);
-
-    if (
-        player &&
-        player.isBanned
-    ) {
-
-        return res.status(403).json({
-            error:
-                'ANTICHEAT_BANNED'
-        });
+    .click-section{
+        margin-top:0;
     }
 
-    if (!player) {
-
-        player = {
-
-            tgId: id,
-
-            username:
-                isCreator(id)
-                    ? 'Creator'
-                    : cleanName(
-                        username ||
-                        firstName,
-                        id
-                    ),
-
-            role:
-                isCreator(id)
-                    ? 'creator'
-                    : 'player',
-
-            chosenEmoji: '',
-
-            coins: 1000,
-            recordCoins: 1000,
-
-            level: 1,
-            xp: 0,
-
-            totalClicks: 0,
-
-            registrationDate:
-                new Date().toISOString(),
-
-            isBanned: false,
-
-            lastTapTime: 0,
-
-            intervalsHistory: [],
-
-            minuteClicksCount: 0,
-            minuteStartTime:
-                Date.now(),
-
-            secondClicksCount: 0,
-            secondStartTime:
-                Date.now(),
-
-            strike: 0,
-            lastStrikeAt: 0,
-
-            anticheatFlags: 0
-        };
-
-        db.players[id] =
-            player;
-
-        persistDb();
-
-    } else if (
-        isCreator(id)
-    ) {
-
-        player.role =
-            'creator';
-
-        player.username =
-            'Creator';
+    .click-zone{
+        width:min(420px,40vw);
     }
 
-    res.json({
-
-        player:
-            publicPlayer(player),
-
-        killSwitch:
-            db.killSwitchActive
-    });
-});
-
-// ============================================================
-// CLICK
-// ============================================================
-
-app.post('/api/click', (req, res) => {
-
-    const player =
-        requirePlayer(req, res);
-
-    if (!player) {
-        return;
+    .desktop-two{
+        display:grid;
+        grid-template-columns:1fr 1fr;
+        gap:12px;
     }
 
-    const now =
-        Date.now();
+}
 
-    const diff =
-        player.lastTapTime
-            ? now -
-              player.lastTapTime
-            : 999999;
+/* SMALL PHONES */
 
-    // ========================================================
-    // RED FLAG 1–9ms
-    // ========================================================
+@media (max-width:360px){
 
-    if (
-        player.lastTapTime &&
-        diff > 0 &&
-        diff < RED_FLAG_MS
-    ) {
-
-        player.isBanned = true;
-
-        player.anticheatFlags++;
-
-        player.strike = 0;
-
-        logAction(
-            'RED_FLAG',
-            'PERMANENT_BAN_ULTRA_FAST_CLICK',
-            player.username,
-            `${diff}ms`
-        );
-
-        return res.status(403).json({
-
-            error:
-                'ANTICHEAT_RED_FLAG',
-
-            reason:
-                `Impossible click interval: ${diff}ms`
-        });
+    .app{
+        padding-left:10px;
+        padding-right:10px;
     }
 
-    // ========================================================
-    // DUPLICATE TIMESTAMP
-    // ========================================================
-
-    if (
-        player.lastTapTime &&
-        diff === 0
-    ) {
-
-        player.isBanned = true;
-
-        player.anticheatFlags++;
-
-        logAction(
-            'RED_FLAG',
-            'PERMANENT_BAN_DUPLICATE_TIMESTAMP',
-            player.username,
-            '0ms'
-        );
-
-        return res.status(403).json({
-            error:
-                'ANTICHEAT_RED_FLAG'
-        });
+    .stats-row{
+        gap:5px;
     }
 
-    // ========================================================
-    // PER SECOND
-    // ========================================================
-
-    if (
-        now -
-        player.secondStartTime
-        >= 1000
-    ) {
-
-        player.secondStartTime =
-            now;
-
-        player.secondClicksCount =
-            0;
+    .stat{
+        padding:8px 2px;
     }
 
-    player.secondClicksCount++;
-
-    if (
-        player.secondClicksCount >
-        MAX_REQUESTS_PER_SECOND
-    ) {
-
-        player.isBanned =
-            true;
-
-        player.anticheatFlags++;
-
-        logAction(
-            'RED_FLAG',
-            'PERMANENT_BAN_REQUEST_FLOOD',
-            player.username,
-            `${player.secondClicksCount}/sec`
-        );
-
-        return res.status(403).json({
-            error:
-                'ANTICHEAT_RED_FLAG'
-        });
+    .stat-value{
+        font-size:13px;
     }
 
-    // ========================================================
-    // PER MINUTE
-    // ========================================================
-
-    if (
-        now -
-        player.minuteStartTime
-        >= 60000
-    ) {
-
-        player.minuteStartTime =
-            now;
-
-        player.minuteClicksCount =
-            0;
+    .click-zone{
+        width:74vw;
     }
 
-    player.minuteClicksCount++;
-
-    if (
-        player.minuteClicksCount >
-        MAX_CLICKS_PER_MINUTE
-    ) {
-
-        player.isBanned =
-            true;
-
-        player.anticheatFlags++;
-
-        logAction(
-            'STAGE_3',
-            'PERMANENT_BAN_OVERLOAD',
-            player.username,
-            `${player.minuteClicksCount}/min`
-        );
-
-        return res.status(403).json({
-            error:
-                'ANTICHEAT_STAGE_3'
-        });
+    .nav-btn{
+        font-size:8px;
     }
 
-    // ========================================================
-    // STRIKE
-    // ========================================================
+}
 
-    if (
-        player.lastStrikeAt &&
-        now -
-        player.lastStrikeAt
-        <= STRIKE_RESET_MS
-    ) {
+/* LANDSCAPE MOBILE */
 
-        player.strike =
-            Math.min(
-                MAX_STRIKE,
-                player.strike + 1
-            );
+@media (max-height:520px) and (orientation:landscape){
 
-    } else {
-
-        player.strike = 1;
+    .click-zone{
+        width:260px;
     }
 
-    player.lastStrikeAt =
-        now;
-
-    // ========================================================
-    // CLICK
-    // ========================================================
-
-    player.lastTapTime =
-        now;
-
-    player.totalClicks++;
-
-    // ========================================================
-    // REWARD
-    // ========================================================
-
-    const baseClick =
-        Math.max(
-            1,
-            1 +
-            Math.floor(
-                player.level * 0.5
-            )
-        );
-
-    const multiplier =
-        Math.max(
-            1,
-            Math.min(
-                MAX_STRIKE,
-                player.strike
-            )
-        );
-
-    const reward =
-        baseClick *
-        multiplier;
-
-    player.coins +=
-        reward;
-
-    player.recordCoins =
-        Math.max(
-            player.recordCoins,
-            player.coins
-        );
-
-    // ========================================================
-    // XP
-    // ========================================================
-
-    player.xp += 1;
-
-    let leveledUp =
-        false;
-
-    while (
-        player.xp >=
-        xpNeeded(player.level)
-    ) {
-
-        player.xp -=
-            xpNeeded(
-                player.level
-            );
-
-        player.level++;
-
-        leveledUp =
-            true;
+    .balance{
+        font-size:34px;
     }
 
-    persistDb();
-
-    res.json({
-
-        player:
-            publicPlayer(player),
-
-        reward,
-
-        baseClick,
-
-        multiplier,
-
-        leveledUp
-    });
-});
-
-// ============================================================
-// PROFILE
-// ============================================================
-
-app.post('/api/profile', (req, res) => {
-
-    const player =
-        requirePlayer(req, res);
-
-    if (!player) {
-        return;
+    .header{
+        padding-top:4px;
     }
 
-    const {
-        username,
-        chosenEmoji
-    } = req.body || {};
+}
+</style>
+</head>
 
-    if (
-        username !== undefined
-    ) {
+<body>
 
-        const cleaned =
-            cleanName(
-                username,
-                player.tgId
-            );
+<div id="loading" class="loading">
+    <div class="loader">
+        <div class="loader-logo">VEX</div>
+        <div class="loader-text">Подключение к серверу...</div>
+    </div>
+</div>
 
-        if (
-            cleaned !==
-            username.trim()
-        ) {
+<div id="toastContainer" class="toast-container"></div>
 
-            return res.status(400)
-                .json({
-                    error:
-                        'INVALID_NAME'
-                });
-        }
+<div id="termsOverlay" class="overlay hidden">
+    <div class="modal">
+        <h2>Перед началом</h2>
 
-        player.username =
-            player.role ===
-            'creator'
-                ? 'Creator'
-                : cleaned;
-    }
+        <p>
+            Это закрытое тестирование VEX.
+            Перед первым запуском необходимо ознакомиться
+            с правилами, условиями использования и политикой
+            конфиденциальности.
+        </p>
 
-    if (
-        chosenEmoji !==
-        undefined
-    ) {
+        <div class="modal-links">
+            <a id="termsLink"
+               class="modal-link"
+               href="#"
+               target="_blank"
+               rel="noopener">
+                📄 Условия использования
+            </a>
 
-        player.chosenEmoji =
-            String(
-                chosenEmoji
-            ).slice(0, 8);
-    }
+            <a id="rulesLink"
+               class="modal-link"
+               href="#"
+               target="_blank"
+               rel="noopener">
+                📜 Правила игры
+            </a>
 
-    persistDb();
+            <a id="policyLink"
+               class="modal-link"
+               href="#"
+               target="_blank"
+               rel="noopener">
+                🔒 Политика конфиденциальности
+            </a>
+        </div>
 
-    res.json({
-        player:
-            publicPlayer(player)
-    });
-});
+        <p>
+            Нажимая «Принять», вы подтверждаете,
+            что прочитали документы и соглашаетесь
+            с указанными условиями.
+        </p>
 
-// ============================================================
-// SAVE COMPATIBILITY
-// ============================================================
+        <div class="modal-actions">
+            <button
+                id="acceptTerms"
+                class="primary">
+                Принять
+            </button>
+        </div>
+    </div>
+</div>
 
-app.post('/api/save', (req, res) => {
+<div id="closedOverlay" class="overlay hidden">
+    <div class="modal">
+        <h2>🔒 Закрытое тестирование</h2>
 
-    const player =
-        requirePlayer(req, res);
+        <p>
+            Игра сейчас находится в закрытом тестировании.
+            Доступ разрешён только участникам тестовой группы.
+        </p>
 
-    if (!player) {
-        return;
-    }
+        <p>
+            Если ты считаешь, что должен иметь доступ,
+            проверь Telegram-аккаунт, с которого открыта игра.
+        </p>
+    </div>
+</div>
 
-    if (
-        req.body &&
-        (
-            req.body.coins !==
-                undefined ||
-
-            req.body.xp !==
-                undefined ||
-
-            req.body.level !==
-                undefined
-        )
-    ) {
-
-        logAction(
-            'SECURITY',
-            'BLOCKED_CLIENT_ECONOMY_SAVE',
-            player.username
-        );
-
-        return res.status(400)
-            .json({
-                error:
-                    'SERVER_AUTHORITATIVE_DATA'
-            });
-    }
-
-    res.json({
-        player:
-            publicPlayer(player)
-    });
-});
-
-// ============================================================
-// LEADERBOARD
-// ============================================================
-
-app.get(
-    '/api/leaderboard',
-    (req, res) => {
-
-        const page =
-            Math.max(
-                1,
-                Number(
-                    req.query.page || 1
-                )
-            );
-
-        const sort =
-            [
-                'coins',
-                'level',
-                'clicks'
-            ].includes(
-                req.query.sort
-            )
-                ? req.query.sort
-                : 'coins';
-
-        const players =
-            Object.values(
-                db.players
-            )
-            .filter(
-                p => !p.isBanned
-            )
-            .sort(
-                (a, b) => {
-
-                    if (
-                        sort ===
-                        'level'
-                    ) {
-
-                        return (
-                            b.level -
-                            a.level
-                        ) ||
-                        (
-                            b.xp -
-                            a.xp
-                        );
-                    }
-
-                    if (
-                        sort ===
-                        'clicks'
-                    ) {
-
-                        return (
-                            b.totalClicks -
-                            a.totalClicks
-                        );
-                    }
-
-                    return (
-                        b.coins -
-                        a.coins
-                    );
-                }
-            );
-
-        const total =
-            players.length;
-
-        const totalPages =
-            Math.max(
-                1,
-                Math.ceil(
-                    total /
-                    LEADERBOARD_PAGE_SIZE
-                )
-            );
-
-        const safePage =
-            Math.min(
-                page,
-                totalPages
-            );
-
-        const start =
-            (
-                safePage - 1
-            ) *
-            LEADERBOARD_PAGE_SIZE;
-
-        res.json({
-
-            page:
-                safePage,
-
-            totalPages,
-
-            total,
-
-            sort,
-
-            players:
-                players
-                .slice(
-                    start,
-                    start +
-                    LEADERBOARD_PAGE_SIZE
-                )
-                .map(
-                    (p, i) => ({
-
-                        rank:
-                            start +
-                            i +
-                            1,
-
-                        tgId:
-                            p.tgId,
-
-                        username:
-                            p.username,
-
-                        chosenEmoji:
-                            p.chosenEmoji,
-
-                        level:
-                            p.level,
-
-                        coins:
-                            p.coins,
-
-                        totalClicks:
-                            p.totalClicks
-                    })
-                )
-        });
-    }
-);
-
-// ============================================================
-// CREATOR STATS
-// ============================================================
-
-app.get(
-    '/api/admin/stats',
-    (req, res) => {
-
-        if (
-            !adminAuth(
-                req,
-                res
-            )
-        ) {
-            return;
-        }
-
-        const players =
-            Object.values(
-                db.players
-            );
-
-        const banned =
-            players.filter(
-                p => p.isBanned
-            ).length;
-
-        const coins =
-            players.reduce(
-                (sum, p) =>
-                    sum +
-                    Number(
-                        p.coins || 0
-                    ),
-                0
-            );
-
-        cons
+<div id="banOverlay" class="overlay hidden">
+    <div class="modal">
+        <h2>⛔ Доступ заблокировано!
