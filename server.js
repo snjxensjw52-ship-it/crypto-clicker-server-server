@@ -1409,6 +1409,963 @@ app.post(
 
     }
 );
+/*
+========================================================
+ADMIN — GIVE COINS
+========================================================
+*/
 
+app.post(
+    '/api/admin/give-coins',
+    requireAdmin,
+    async (req, res) => {
+
+        const tgId =
+            String(
+                req.body?.tgId || ''
+            );
+
+        const amount =
+            int(
+                req.body?.amount
+            );
+
+        const player =
+            db.players[tgId];
+
+        if (!player) {
+
+            return res.status(404).json({
+                error:
+                    'PLAYER_NOT_FOUND'
+            });
+
+        }
+
+        if (
+            amount <= 0
+        ) {
+
+            return res.status(400).json({
+                error:
+                    'INVALID_AMOUNT'
+            });
+
+        }
+
+        player.coins +=
+            amount;
+
+        player.totalEarned +=
+            amount;
+
+        player.recordCoins =
+            Math.max(
+                player.recordCoins,
+                player.coins
+            );
+
+        updateMedals(
+            player
+        );
+
+        updateTitles(
+            player
+        );
+
+        log(
+            'ADMIN',
+            'GIVE_COINS',
+            player.username,
+            {
+                amount
+            }
+        );
+
+        await queueSave();
+
+        return res.json({
+
+            ok:
+                true,
+
+            amount,
+
+            coins:
+                player.coins,
+
+            player:
+                publicPlayer(
+                    player
+                )
+
+        });
+
+    }
+);
+
+/*
+========================================================
+ADMIN — REMOVE COINS
+========================================================
+*/
+
+app.post(
+    '/api/admin/remove-coins',
+    requireAdmin,
+    async (req, res) => {
+
+        const tgId =
+            String(
+                req.body?.tgId || ''
+            );
+
+        const amount =
+            int(
+                req.body?.amount
+            );
+
+        const player =
+            db.players[tgId];
+
+        if (!player) {
+
+            return res.status(404).json({
+                error:
+                    'PLAYER_NOT_FOUND'
+            });
+
+        }
+
+        if (
+            amount <= 0
+        ) {
+
+            return res.status(400).json({
+                error:
+                    'INVALID_AMOUNT'
+            });
+
+        }
+
+        player.coins =
+            Math.max(
+                0,
+                player.coins -
+                    amount
+            );
+
+        log(
+            'ADMIN',
+            'REMOVE_COINS',
+            player.username,
+            {
+                amount
+            }
+        );
+
+        await queueSave();
+
+        return res.json({
+
+            ok:
+                true,
+
+            amount,
+
+            coins:
+                player.coins,
+
+            player:
+                publicPlayer(
+                    player
+                )
+
+        });
+
+    }
+);
+
+/*
+========================================================
+ADMIN — SET LEVEL
+========================================================
+*/
+
+app.post(
+    '/api/admin/set-level',
+    requireAdmin,
+    async (req, res) => {
+
+        const tgId =
+            String(
+                req.body?.tgId || ''
+            );
+
+        const level =
+            clamp(
+                int(
+                    req.body?.level
+                ),
+                1,
+                10000
+            );
+
+        const player =
+            db.players[tgId];
+
+        if (!player) {
+
+            return res.status(404).json({
+                error:
+                    'PLAYER_NOT_FOUND'
+            });
+
+        }
+
+        player.level =
+            level;
+
+        player.xp =
+            0;
+
+        updateMedals(
+            player
+        );
+
+        updateTitles(
+            player
+        );
+
+        log(
+            'ADMIN',
+            'SET_LEVEL',
+            player.username,
+            {
+                level
+            }
+        );
+
+        await queueSave();
+
+        return res.json({
+
+            ok:
+                true,
+
+            level:
+                player.level,
+
+            player:
+                publicPlayer(
+                    player
+                )
+
+        });
+
+    }
+);
+/*
+========================================================
+ADMIN — SET ROLE
+========================================================
+*/
+
+app.post(
+    '/api/admin/set-role',
+    requireAdmin,
+    async (req, res) => {
+
+        const tgId =
+            String(
+                req.body?.tgId || ''
+            );
+
+        const role =
+            String(
+                req.body?.role ||
+                'player'
+            )
+            .trim()
+            .slice(0, 32);
+
+        const allowedRoles = [
+            'player',
+            'tester',
+            'ui_designer',
+            'moderator',
+            'admin',
+            'creator'
+        ];
+
+        if (
+            !allowedRoles.includes(
+                role
+            )
+        ) {
+
+            return res.status(400).json({
+                error:
+                    'INVALID_ROLE'
+            });
+
+        }
+
+        const player =
+            db.players[tgId];
+
+        if (!player) {
+
+            return res.status(404).json({
+                error:
+                    'PLAYER_NOT_FOUND'
+            });
+
+        }
+
+        player.role =
+            role;
+
+        log(
+            'ADMIN',
+            'SET_ROLE',
+            player.username,
+            {
+                role
+            }
+        );
+
+        await queueSave();
+
+        return res.json({
+
+            ok:
+                true,
+
+            role,
+
+            player:
+                publicPlayer(
+                    player
+                )
+
+        });
+
+    }
+);
+
+/*
+========================================================
+ADMIN — LOGS
+========================================================
+*/
+
+app.get(
+    '/api/admin/logs',
+    requireAdmin,
+    (req, res) => {
+
+        const limit =
+            clamp(
+                int(
+                    req.query.limit,
+                    100
+                ),
+                1,
+                MAX_LOGS
+            );
+
+        return res.json({
+
+            logs:
+                db.logs
+                    .slice(-limit)
+                    .reverse()
+
+        });
+
+    }
+);
+
+/*
+========================================================
+ADMIN — STATS
+========================================================
+*/
+
+app.get(
+    '/api/admin/stats',
+    requireAdmin,
+    (req, res) => {
+
+        const players =
+            Object.values(
+                db.players
+            );
+
+        const activePlayers =
+            players.filter(
+                p =>
+                    !p.isBanned
+            );
+
+        const totalCoins =
+            players.reduce(
+                (sum, p) =>
+                    sum +
+                    p.coins,
+                0
+            );
+
+        const totalClicks =
+            players.reduce(
+                (sum, p) =>
+                    sum +
+                    p.totalClicks,
+                0
+            );
+
+        const totalEarned =
+            players.reduce(
+                (sum, p) =>
+                    sum +
+                    p.totalEarned,
+                0
+            );
+
+        return res.json({
+
+            players:
+                players.length,
+
+            activePlayers:
+                activePlayers.length,
+
+            bannedPlayers:
+                players.length -
+                activePlayers.length,
+
+            totalCoins,
+
+            totalClicks,
+
+            totalEarned,
+
+            promos:
+                Object.keys(
+                    db.promos
+                ).length,
+
+            events:
+                Object.keys(
+                    db.events
+                ).length
+
+        });
+
+    }
+);
+/*
+========================================================
+EVENTS
+========================================================
+*/
+
+app.get(
+    '/api/events',
+    requirePlayer,
+    (req, res) => {
+
+        const events =
+            Object.values(
+                db.events
+            );
+
+        return res.json({
+
+            events
+
+        });
+
+    }
+);
+
+/*
+========================================================
+EVENT — JOIN
+========================================================
+*/
+
+app.post(
+    '/api/events/:eventId/join',
+    requirePlayer,
+    async (req, res) => {
+
+        const player =
+            req.player;
+
+        const eventId =
+            String(
+                req.params.eventId ||
+                ''
+            );
+
+        const event =
+            db.events[eventId];
+
+        if (!event) {
+
+            return res.status(404).json({
+                error:
+                    'EVENT_NOT_FOUND'
+            });
+
+        }
+
+        if (
+            event.endsAt &&
+            event.endsAt < now()
+        ) {
+
+            return res.status(400).json({
+                error:
+                    'EVENT_ENDED'
+            });
+
+        }
+
+        if (
+            !Array.isArray(
+                event.players
+            )
+        ) {
+
+            event.players = [];
+
+        }
+
+        if (
+            !event.players.includes(
+                player.tgId
+            )
+        ) {
+
+            event.players.push(
+                player.tgId
+            );
+
+            player.eventCount++;
+
+            updateMedals(
+                player
+            );
+
+            updateTitles(
+                player
+            );
+
+        }
+
+        await queueSave();
+
+        return res.json({
+
+            ok:
+                true,
+
+            event,
+
+            eventCount:
+                player.eventCount
+
+        });
+
+    }
+);
+
+/*
+========================================================
+ADMIN — CREATE EVENT
+========================================================
+*/
+
+app.post(
+    '/api/admin/event',
+    requireAdmin,
+    async (req, res) => {
+
+        const eventId =
+            String(
+                req.body?.id ||
+                ''
+            )
+            .trim()
+            .slice(0, 50);
+
+        const name =
+            String(
+                req.body?.name ||
+                'Global Event'
+            )
+            .trim()
+            .slice(0, 100);
+
+        const description =
+            String(
+                req.body?.description ||
+                ''
+            )
+            .trim()
+            .slice(0, 500);
+
+        const reward =
+            Math.max(
+                0,
+                int(
+                    req.body?.reward
+                )
+            );
+
+        const duration =
+            Math.max(
+                60000,
+                int(
+                    req.body?.duration,
+                    3600000
+                )
+            );
+
+        if (!eventId) {
+
+            return res.status(400).json({
+                error:
+                    'INVALID_EVENT_ID'
+            });
+
+        }
+
+        if (
+            db.events[eventId]
+        ) {
+
+            return res.status(400).json({
+                error:
+                    'EVENT_EXISTS'
+            });
+
+        }
+
+        db.events[eventId] = {
+
+            id:
+                eventId,
+
+            name,
+
+            description,
+
+            reward,
+
+            createdAt:
+                now(),
+
+            endsAt:
+                now() +
+                duration,
+
+            players:
+                []
+
+        };
+
+        log(
+            'ADMIN',
+            'CREATE_EVENT',
+            eventId,
+            {
+                name,
+                reward,
+                duration
+            }
+        );
+
+        await queueSave();
+
+        return res.json({
+
+            ok:
+                true,
+
+            event:
+                db.events[eventId]
+
+        });
+
+    }
+);
+/*
+========================================================
+ADMIN — DELETE EVENT
+========================================================
+*/
+
+app.delete(
+    '/api/admin/event/:eventId',
+    requireAdmin,
+    async (req, res) => {
+
+        const eventId =
+            String(
+                req.params.eventId ||
+                ''
+            );
+
+        if (
+            !db.events[eventId]
+        ) {
+
+            return res.status(404).json({
+                error:
+                    'EVENT_NOT_FOUND'
+            });
+
+        }
+
+        delete db.events[eventId];
+
+        log(
+            'ADMIN',
+            'DELETE_EVENT',
+            eventId
+        );
+
+        await queueSave();
+
+        return res.json({
+            ok:
+                true
+        });
+
+    }
+);
+
+/*
+========================================================
+SESSION LOGOUT
+========================================================
+*/
+
+app.post(
+    '/api/auth/logout',
+    requirePlayer,
+    (req, res) => {
+
+        sessions.delete(
+            req.session.token
+        );
+
+        return res.json({
+            ok:
+                true
+        });
+
+    }
+);
+
+/*
+========================================================
+HEALTH
+========================================================
+*/
+
+app.get(
+    '/api/health',
+    (req, res) => {
+
+        return res.json({
+
+            ok:
+                true,
+
+            server:
+                'online',
+
+            time:
+                new Date().toISOString(),
+
+            players:
+                Object.keys(
+                    db.players
+                ).length
+
+        });
+
+    }
+);
+
+/*
+========================================================
+ROOT
+========================================================
+*/
+
+app.get(
+    '/',
+    (req, res) => {
+
+        res.json({
+
+            name:
+                'VEX Game Server',
+
+            status:
+                'online',
+
+            version:
+                db.version
+
+        });
+
+    }
+);
+/*
+========================================================
+ERROR HANDLER
+========================================================
+*/
+
+app.use(
+    (error, req, res, next) => {
+
+        console.error(
+            '[SERVER ERROR]',
+            error
+        );
+
+        if (
+            res.headersSent
+        ) {
+
+            return next(
+                error
+            );
+
+        }
+
+        return res.status(500).json({
+
+            error:
+                'INTERNAL_SERVER_ERROR'
+
+        });
+
+    }
+);
+
+/*
+========================================================
+START SERVER
+========================================================
+*/
+
+async function start() {
+
+    await load();
+
+    app.listen(
+        PORT,
+        HOST,
+        () => {
+
+            console.log(
+                '================================'
+            );
+
+            console.log(
+                'VEX GAME SERVER'
+            );
+
+            console.log(
+                '================================'
+            );
+
+            console.log(
+                `Server running on ${HOST}:${PORT}`
+            );
+
+            console.log(
+                `Closed test: ${CLOSED_TEST}`
+            );
+
+            console.log(
+                `Telegram auth: ${REQUIRE_TELEGRAM_AUTH}`
+            );
+
+            console.log(
+                `Players: ${
+                    Object.keys(
+                        db.players
+                    ).length
+                }`
+            );
+
+            console.log(
+                '================================'
+            );
+
+        }
+    );
+
+}
+
+process.on(
+    'SIGTERM',
+    async () => {
+
+        console.log(
+            'SIGTERM received.'
+        );
+
+        await queueSave();
+
+        process.exit(
+            0
+        );
+
+    }
+);
+
+process.on(
+    'SIGINT',
+    async () => {
+
+        console.log(
+            'SIGINT received.'
+        );
+
+        await queueSave();
+
+        process.exit(
+            0
+        );
+
+    }
+);
+
+start()
+    .catch(
+        error => {
+
+            console.error(
+                '[STARTUP ERROR]',
+                error
+            );
+
+            process.exit(
+                1
+            );
+
+        }
+    );
 
 
